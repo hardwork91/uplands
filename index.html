@@ -1,0 +1,1557 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uplands</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600&display=swap">
+<style>
+  /* Layout: lienzo a pantalla completa con cielo; HUD arriba (nivel + contador), controles abajo */
+  :root {
+    color-scheme: light;
+    --sky-top: #7fb8e6;
+    --sky-bot: #e4f1f6;
+    --ink: #1f3346;
+    --muted: #4f6b82;
+    --panel: rgba(255, 255, 255, 0.72);
+    --line: rgba(31, 51, 70, 0.14);
+    --gem: #18a7c9;
+    --star: #e8364a;
+    --star-off: rgba(31, 51, 70, 0.22);
+    --win: #2f8f4e;
+    --warn: #c0492b;
+    --font-display: "Silkscreen", "Courier New", monospace;
+    --font-body: "Inter", system-ui, sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; user-select: none; -webkit-user-select: none;
+    background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 80%);
+    color: var(--ink); font-family: var(--font-body);
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    pointer-events: none;
+  }
+  .panel {
+    background: var(--panel); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+  }
+  .brand { display: flex; flex-direction: column; gap: 4px; max-width: 360px; min-width: 0; }
+  .brand h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: 0.06em; }
+  #lvl { font-family: var(--font-display); font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+  #hint { margin: 2px 0 0; font-size: 13px; line-height: 1.45; color: var(--ink); text-wrap: pretty; }
+  .counter { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 92px; }
+  .counter small { font-family: var(--font-display); font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+  #count { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1; color: var(--gem); font-variant-numeric: tabular-nums; }
+  #count.pop { animation: pop 0.25s ease-out; }
+  @keyframes pop { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+  .bottom {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+    pointer-events: none;
+  }
+  .left { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; pointer-events: auto; }
+  button {
+    font-family: var(--font-display); font-size: 13px; color: var(--ink);
+    background: var(--panel); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .right { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+  .tools { display: flex; gap: 8px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .tool {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    width: 76px; min-height: 84px; padding: 10px 6px; border-radius: 10px;
+  }
+  .tool .ico { font-family: var(--font-body); font-size: 28px; line-height: 1; }
+  .tool .lbl { font-size: 11px; letter-spacing: 0.03em; }
+  .tool .cost { display: flex; align-items: center; gap: 4px; font-size: 10px; opacity: 0.8; font-variant-numeric: tabular-nums; }
+  .tool .coin { width: 10px; height: 10px; }
+  @media (max-width: 520px) {
+    .top { flex-direction: column; align-items: stretch; gap: 8px; }
+    .right { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+    .tools { flex-wrap: nowrap; gap: 6px; }
+    .tool { width: 58px; min-height: 64px; padding: 6px 2px; gap: 2px; }
+    .tool .ico { font-size: 20px; }
+    .tool .lbl { font-size: 9px; letter-spacing: 0; }
+    .counter { min-width: 0; padding: 6px 10px; }
+    #count { font-size: 24px; }
+    #stars { font-size: 13px; }
+    .coins { font-size: 12px; margin-top: 3px; }
+  }
+  #hintBtn { color: #8a6a00; }
+  #undoBtn { color: #8a2f5a; }
+  #slowBtn { color: #2f5f9a; }
+  #soundBtn { color: #3c6b4f; }
+  #soundBtn.muted { color: var(--muted); opacity: 0.75; }
+  #slowBtn.active { background: #2f5f9a; color: #fff; border-color: #2f5f9a; }
+  #modalBody { display: flex; flex-direction: column; gap: 10px; }
+  #banner .undo { pointer-events: auto; display: block; margin: 8px auto 0; font-size: 14px; color: #8a2f5a; }
+  /* Cámara lenta: viñeta azulada en los bordes */
+  #slowFx { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 140px 20px rgba(70, 130, 255, 0.45); transition: opacity 0.4s; opacity: 0; }
+  body.slow #slowFx { opacity: 1; }
+  .coins { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .coin { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe680, #e0a800 70%); box-shadow: inset 0 0 0 2px #b88400; flex: none; }
+  #coins.pop { animation: pop 0.3s ease-out; }
+  #toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: calc(118px + env(safe-area-inset-top, 0px));
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: 10px; background: var(--ink); color: #fff;
+    font-size: 14px; box-shadow: 0 6px 24px rgba(31, 51, 70, 0.3);
+    pointer-events: none; max-width: calc(100% - 32px); animation: toastIn 0.35s ease-out;
+  }
+  #toast b { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.03em; }
+  #toast small { display: block; opacity: 0.75; font-size: 12px; }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  #modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(31, 51, 70, 0.35); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); z-index: 20; }
+  #modal .card { background: #fff; color: var(--ink); border-radius: 12px; padding: 22px 22px 18px; max-width: 360px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 12px 40px rgba(31, 51, 70, 0.3); }
+  #modal h2 { margin: 0; font-family: var(--font-display); font-size: 20px; color: #8a6a00; }
+  #modal p { margin: 0; font-size: 14px; line-height: 1.5; }
+  #modal .cost { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 13px; line-height: 1.4; }
+  #modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
+  #modal .primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  #stars { display: flex; gap: 3px; font-size: 18px; line-height: 1; margin-top: 4px; }
+  #stars span { color: var(--star-off); }
+  #stars .got { color: var(--star); }
+  #stars .lost { color: var(--star-off); opacity: 0.5; }
+  .wstars { display: block; font-size: 38px; letter-spacing: 6px; margin-top: 4px; }
+  .wstars .got { color: var(--star); } .wstars .off { color: var(--star-off); }
+  .dots button .best { display: block; font-size: 8px; letter-spacing: 0; color: var(--star); min-height: 9px; font-family: var(--font-body); }
+  .dots button.on .best { color: #ffb3bb; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dots button { width: 34px; height: 38px; padding: 0; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .dots button.on { background: var(--ink); color: #fff; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); pointer-events: auto; }
+  .dpad button { width: 48px; height: 48px; padding: 0; font-size: 20px; font-family: var(--font-body); }
+  .dpad .nw { grid-area: 1 / 1; } .dpad .ne { grid-area: 1 / 3; }
+  .dpad .sw { grid-area: 3 / 1; } .dpad .se { grid-area: 3 / 3; }
+
+  #banner {
+    position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 6vw, 40px);
+    padding: 14px 22px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    text-align: center; pointer-events: none; max-width: calc(100% - 32px);
+  }
+  #banner.win { color: var(--win); animation: rise 0.5s ease-out; }
+  #banner.stuck { color: var(--warn); font-size: clamp(16px, 4.5vw, 24px); top: auto; bottom: 30%; }
+  /* Con el cartel de reintentar, el juego queda bloqueado: solo responden Reintentar y Reiniciar */
+  body.locked #scene { pointer-events: none; }
+  body.locked .dpad, body.locked #hintBtn, body.locked #slowBtn { opacity: 0.4; pointer-events: none; }
+  #banner .retry {
+    pointer-events: auto; display: block; margin: 12px auto 0;
+    font-size: 15px; padding: 12px 20px;
+    background: var(--ink); color: #fff; border-color: var(--ink);
+  }
+  #banner .retry:hover { background: #2c4a66; color: #fff; }
+  #banner small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 14px; color: var(--muted); margin-top: 6px; }
+  @keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+  @media (max-width: 520px) { .brand { max-width: none; } #hint { font-size: 12px; } }
+  @media (prefers-reduced-motion: reduce) { #count.pop, #banner.win { animation: none; } }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="top">
+  <div class="panel brand">
+    <h1>UPLANDS</h1>
+    <div id="lvl">NIVEL 1 / 7</div>
+    <p id="hint"></p>
+  </div>
+  <div class="right">
+  <div class="tools" aria-label="Acciones">
+    <button id="restart" class="tool" title="Reiniciar (R)"><span class="ico">↺</span><span class="lbl">Reiniciar</span><span class="cost">R</span></button>
+    <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl">Pista</span><span class="cost"></span></button>
+    <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl">Deshacer</span><span class="cost"></span></button>
+    <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl">Lento</span><span class="cost"></span></button>
+    <button id="soundBtn" class="tool" title="Sonido (M)"><span class="ico">♪</span><span class="lbl">Sonido</span><span class="cost">Todo</span></button>
+  </div>
+  <div class="panel counter" aria-live="polite">
+    <small>FALTAN</small>
+    <div id="count">0</div>
+    <div id="stars" aria-label="Estrellas"></div>
+    <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
+  </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="left">
+    <div class="dots" id="dots" aria-label="Niveles"></div>
+  </div>
+  <div class="dpad" aria-label="Movimiento">
+    <button class="nw" data-d="W" aria-label="Izquierda">↖</button>
+    <button class="ne" data-d="N" aria-label="Arriba">↗</button>
+    <button class="sw" data-d="S" aria-label="Abajo">↙</button>
+    <button class="se" data-d="E" aria-label="Derecha">↘</button>
+  </div>
+</div>
+
+<div id="slowFx"></div>
+<div id="banner" hidden></div>
+<div id="toast" hidden></div>
+<div id="modal" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div class="actions" id="modalActions"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+(() => {
+  // ---------- Niveles ----------
+  // S = inicio · 1-9 = gemas · . = vacío · ^ v < > = sentido único, sin gemas (dirección en la que hay que entrar) · a b = portales · + = hielo · K1 = interruptor del color 1 · L1 = barrera del color 1 con 1 gema (L1:3 = con 3 gemas)
+  const LEVELS = [
+    { name: 'Serpiente', stars: [[2,2,6],[4,4,9.5],[1,4,12]], hint: 'Muévete con las flechas, WASD o tocando una casilla vecina. Recoge todas las gemas.', rows: [
+      'S 1 1 . .',
+      '. . 1 . .',
+      '. . 1 1 1',
+      '. . . . 1',
+      '. 1 1 1 1',
+      '. 1 . . .'] },
+    { name: 'Cruce', stars: [[2,1,4.5],[3,2,8],[5,1,10]], hint: 'El cruce tiene 3 gemas: puedes volver a pisarlo 3 veces.', rows: [
+      '. . . 1 . .',
+      'S 1 1 3 1 1',
+      '. . . 1 . .'] },
+    { name: 'Campo abierto', stars: [[1,2,7],[2,2,11],[3,1,14]], hint: 'Hay muchos caminos posibles. Cuidado con cerrarte el paso.', rows: [
+      'S 1 1 1',
+      '1 1 1 1',
+      '1 1 1 1',
+      '1 1 1 1'] },
+    { name: 'Islotes', stars: [[3,2,8.5],[1,4,15],[0,1,21.5]], hint: 'Algunas casillas tienen 2 gemas. Una casilla solo cae cuando se vacía.', rows: [
+      '1 1 . 1 1',
+      '1 2 1 2 1',
+      '. 1 S 1 .',
+      '1 2 1 2 1',
+      '1 1 . 1 1'] },
+    { name: 'Sentido único', stars: [[4, 2, 9.5], [3, 4, 12], [1, 1, 16]], hint: 'A las casillas con flecha solo se entra en la dirección de la flecha.', rows: [
+      'S 1 > 1 .',
+      '. 1 . 1 .',
+      '. 2 1 2 1',
+      '. ^ . v 1',
+      '. 1 1 1 1'] },
+    { name: 'Portales', stars: [[7,3,7],[7,0,9.5],[1,3,12.5]], hint: 'Entra en un portal y saldrás por el de su mismo color. Ambos desaparecen.', rows: [
+      'S 1 1 . . 1 1 1',
+      '. . a . . b . 1',
+      '. . . . . . . 1',
+      '1 1 b . . a 1 1'] },
+    { name: 'Hielo', stars: [[3,1,7],[1,1,11],[1,3,14]], hint: 'El hielo te hace resbalar a la casilla siguiente. Solo se cruza una vez: elige bien la dirección.', rows: [
+      '1 1 1 1',
+      'S 1 1 1',
+      '1 1 + 1',
+      '1 1 1 1',
+      '. 1 . .'] },
+    { name: 'Cumbre', stars: [[2, 0, 6], [1, 2, 15], [3, 2, 18]], hint: 'Todo junto: gemas dobles, flechas y portales.', rows: [
+      '. . 1 2 >',
+      '. 1 2 a .',
+      '. 1 S 1 .',
+      '. 2 > > .',
+      '2 1 . . .',
+      '2 a . . .'] },
+    { name: 'Interruptor', stars: [[4, 1, 7], [2, 1, 10], [0, 1, 13.5]], hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay gemas.', rows: [
+      '1 1 L1:2 1 1',
+      '1 . 1 . 1',
+      'S 1 K1 1 1'] },
+    { name: 'Dos botones', stars: [[0, 3, 7], [3, 4, 10], [2, 0, 17.5]], hint: 'Cada botón baja solo las barreras de su color.', rows: [
+      '. . 1 1 .',
+      '. . . 2 .',
+      'L1 1 S 2 .',
+      '1 K1 1 2 1',
+      'K2 1 L2 1 .'] },
+    { name: 'Remolino helado', stars: [[0, 2, 8], [2, 2, 12], [3, 3, 16.5]], hint: 'Hielo y portales en el mismo mapa. Ojo con lo que dejas detrás.', rows: [
+      '1 2 1 . .',
+      '1 S a 1 .',
+      '1 1 1 1 .',
+      '+ 1 2 1 1',
+      '1 a 1 . .'] },
+    { name: 'Laberinto', stars: [[0, 4, 8], [3, 2, 16.5], [2, 1, 21.5]], hint: 'Las flechas deciden por dónde entras. Piensa en qué orden recorrerlo todo.', rows: [
+      'S . . 1 .',
+      '1 1 1 2 1',
+      '1 . . 1 >',
+      '2 1 2 2 1',
+      '1 1 2 . .',
+      'v 1 . . .'] },
+    { name: 'Compuertas', stars: [[4, 4, 4.5], [1, 1, 18], [1, 0, 19]], hint: 'Un solo botón abre dos barreras. Y el hielo no perdona.', rows: [
+      '. 1 . . .',
+      '2 1 . . .',
+      '2 2 . . .',
+      'K1 2 . . .',
+      '2 2 1 + 1',
+      'L1 L1 . S 1'] },
+    { name: 'Archipiélago', stars: [[0, 1, 10], [2, 2, 12.5], [0, 5, 20]], hint: 'Dos pares de portales unen islas separadas.', rows: [
+      '. S 2 1 . .',
+      '1 1 a . . .',
+      'b 1 1 . . .',
+      '2 2 2 1 1 ^',
+      '1 . . b 1 a',
+      '1 1 . . . .'] },
+    { name: 'Gran cumbre', stars: [[3, 5, 12], [5, 2, 20], [3, 1, 22]], hint: 'Todo lo aprendido, en un solo mapa.', rows: [
+      '. . . 1 . .',
+      '. a 1 1 1 1',
+      '. . ^ 2 S 1',
+      '. . 1 2 K1 2',
+      '. . 1 + 2 L1',
+      'a 1 2 1 1 .'] },
+  ];
+
+  const DIRS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
+  const ARROW = { '^': 'N', 'v': 'S', '>': 'E', '<': 'W' };
+  const YAW = { N: 0, W: Math.PI / 2, S: Math.PI, E: -Math.PI / 2 };
+  const PORTAL_COLORS = { a: 0x9b5cf6, b: 0xff8a3d, c: 0x22c3a6 };
+  const KEY_COLORS = { 1: 0xf2b632, 2: 0xe0559f, 3: 0x2fb6a5 };
+
+  // ---------- Three.js ----------
+  const canvas = document.getElementById('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+  scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x7a8a6a, 0.7));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 0.8);
+  sun.position.set(-4, 12, 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 });
+  scene.add(sun);
+
+  // Nubes por debajo de las islas
+  const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  const clouds = [];
+  for (let i = 0; i < 9; i++) {
+    const c = new THREE.Group();
+    const n = 2 + (i % 3);
+    for (let j = 0; j < n; j++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(1.2 + Math.random(), 0.5, 0.9 + Math.random() * 0.6), cloudMat);
+      b.position.set(j * 0.8, Math.random() * 0.3, Math.random() * 0.5);
+      c.add(b);
+    }
+    c.position.set(-12 + Math.random() * 24, -4 - Math.random() * 3, -10 + Math.random() * 20);
+    c.userData.v = 0.15 + Math.random() * 0.25;
+    scene.add(c); clouds.push(c);
+  }
+
+  const world = new THREE.Group();
+  scene.add(world);
+
+  const G = {
+    dirtSide: new THREE.BoxGeometry(0.92, 0.4, 0.92),
+    grass: new THREE.BoxGeometry(0.96, 0.14, 0.96),
+    rock: new THREE.ConeGeometry(0.6, 0.75, 4),
+    gem: new THREE.OctahedronGeometry(0.15, 0),
+    ring: new THREE.TorusGeometry(0.3, 0.05, 8, 24),
+    disc: new THREE.CircleGeometry(0.27, 24),
+  };
+  const arrowShape = new THREE.Shape();
+  // Solo la punta: un triángulo que apunta en la dirección de entrada
+  arrowShape.moveTo(0, 0.16); arrowShape.lineTo(0.28, -0.14); arrowShape.lineTo(-0.28, -0.14); arrowShape.closePath();
+  G.arrow = new THREE.ShapeGeometry(arrowShape);
+
+  const lam = c => new THREE.MeshLambertMaterial({ color: c });
+  const gemMat = new THREE.MeshStandardMaterial({ color: 0x4fd8f0, emissive: 0x0b6f8a, emissiveIntensity: 0.6, roughness: 0.25, metalness: 0.1, flatShading: true });
+
+  const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
+  const railMat = lam(0x9a6a3f), railCap = lam(0xc28a55);
+  const G_POST = new THREE.BoxGeometry(0.07, 0.3, 0.07), G_BAR = new THREE.BoxGeometry(0.9, 0.06, 0.06);
+  // Una baranda a lo largo del borde norte (z = -0.43); se gira para los demás lados
+  // Barrera industrial
+  const postMat = lam(0x3a3f45);
+  const G_IPOST = new THREE.BoxGeometry(0.08, 0.34, 0.08), G_LAMP = new THREE.BoxGeometry(0.09, 0.05, 0.09);
+  const G_PLANK = new THREE.BoxGeometry(0.84, 0.1, 0.04);
+  const G_BTN_BASE = new THREE.CylinderGeometry(0.34, 0.36, 0.05, 32), G_BTN_CAP = new THREE.CylinderGeometry(0.25, 0.27, 0.1, 32);
+  const stripeMat = (() => {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 32;
+    const x = cv.getContext('2d');
+    x.fillStyle = '#f5c400'; x.fillRect(0, 0, 256, 32);
+    x.fillStyle = '#1b1b1b';
+    for (let i = -32; i < 256; i += 40) { x.beginPath(); x.moveTo(i, 32); x.lineTo(i + 20, 32); x.lineTo(i + 52, 0); x.lineTo(i + 32, 0); x.closePath(); x.fill(); }
+    const t = new THREE.CanvasTexture(cv);
+    return new THREE.MeshLambertMaterial({ map: t });
+  })();
+  // Suelo de concreto para las casillas de barrera (se queda gris aunque se abran)
+  const concreteMat = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+    const x = cv.getContext('2d');
+    x.fillStyle = '#a4a7a9'; x.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 260; i++) {
+      const v = 130 + Math.floor(Math.random() * 60);
+      x.fillStyle = `rgb(${v},${v + 2},${v + 4})`;
+      x.fillRect(Math.random() * 64, Math.random() * 64, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    x.strokeStyle = 'rgba(70,74,78,0.35)'; x.lineWidth = 1.5;
+    x.beginPath(); x.moveTo(32, 0); x.lineTo(32, 64); x.moveTo(0, 32); x.lineTo(64, 32); x.stroke();
+    return new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(cv) });
+  })();
+  function makeRail(cap = railCap) {
+    const r = new THREE.Group();
+    for (const x of [-0.42, 0, 0.42]) {
+      const p = new THREE.Mesh(G_POST, railMat); p.position.set(x, 0.15, -0.43); p.castShadow = true; r.add(p);
+    }
+    for (const [y, mat] of [[0.27, cap], [0.13, railMat]]) {
+      const b = new THREE.Mesh(G_BAR, mat); b.position.set(0, y, -0.43); b.castShadow = true; r.add(b);
+    }
+    return r;
+  }
+
+  // Estrella: gema roja más grande con un anillo de tiempo sobre la casilla
+  const STAR_GEO = new THREE.OctahedronGeometry(0.23, 0);
+  function makeStarMesh() {
+    const m = new THREE.Mesh(STAR_GEO, new THREE.MeshStandardMaterial({ color: 0xff3b4e, emissive: 0x9a0018, emissiveIntensity: 0.55, roughness: 0.25, flatShading: true }));
+    m.scale.y = 1.25; m.userData.isStar = true;
+    return m;
+  }
+  function setRing(c) {
+    const f = Math.max(0.001, c.star.left / c.star.time);
+    c.star.ring.geometry.dispose();
+    c.star.ring.geometry = new THREE.RingGeometry(0.36, 0.44, 40, 1, Math.PI / 2, Math.PI * 2 * f);
+  }
+
+  // ---------- Portal: remolino animado ----------
+  // Textura de brazos en espiral (blanca; el material la tiñe del color del portal)
+  const SWIRL_TEX = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const x = cv.getContext('2d'); const C = 128;
+    const glow = x.createRadialGradient(C, C, 0, C, C, C);
+    glow.addColorStop(0, 'rgba(255,255,255,0.95)'); glow.addColorStop(0.35, 'rgba(255,255,255,0.35)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = glow; x.fillRect(0, 0, 256, 256);
+    x.lineCap = 'round';
+    for (let arm = 0; arm < 4; arm++) {
+      const a0 = arm * Math.PI / 2;
+      for (let r = 6; r < 122; r += 2) {
+        const a = a0 + r * 0.045;
+        const t = r / 122;
+        x.strokeStyle = `rgba(255,255,255,${0.85 * (1 - t) + 0.1})`;
+        x.lineWidth = 3 + 9 * (1 - t);
+        x.beginPath();
+        x.moveTo(C + Math.cos(a) * r, C + Math.sin(a) * r);
+        x.lineTo(C + Math.cos(a + 0.045 * 2) * (r + 2), C + Math.sin(a + 0.045 * 2) * (r + 2));
+        x.stroke();
+      }
+    }
+    return new THREE.CanvasTexture(cv);
+  })();
+  const G_SPARK = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+  function makePortalFx(col) {
+    const fx = new THREE.Group();
+    const flat = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = y; fx.add(m); return m; };
+    // Borde, fondo oscuro y dos capas de remolino girando en sentidos opuestos
+    const rim = new THREE.Mesh(G.ring, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6 }));
+    rim.rotation.x = Math.PI / 2; rim.position.y = 0.05; fx.add(rim);
+    const deep = new THREE.Color(col).multiplyScalar(0.35);
+    flat(G.disc, new THREE.MeshBasicMaterial({ color: deep, transparent: true, opacity: 0.9 }), 0.012);
+    const s1 = flat(new THREE.CircleGeometry(0.29, 32), new THREE.MeshBasicMaterial({ map: SWIRL_TEX, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 0.02);
+    const s2 = flat(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ map: SWIRL_TEX, color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }), 0.026);
+    // Chispas que giran en espiral hacia el centro mientras suben
+    const sparkMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.5), transparent: true });
+    const sparks = [];
+    for (let i = 0; i < 10; i++) {
+      const m = new THREE.Mesh(G_SPARK, sparkMat); fx.add(m);
+      sparks.push({ m, phase: i / 10, a0: Math.random() * Math.PI * 2 });
+    }
+    fx.userData.update = (dt, time) => {
+      s1.rotation.z += dt * 2.2;
+      s2.rotation.z -= dt * 3.4;
+      const pulse = 1 + Math.sin(time * 4) * 0.04;
+      s1.scale.set(pulse, pulse, 1);
+      for (const sp of sparks) {
+        const f = (time * 0.6 + sp.phase) % 1;
+        const r = 0.3 * (1 - f);
+        const a = sp.a0 - f * Math.PI * 3;
+        sp.m.position.set(Math.cos(a) * r, 0.04 + f * 0.35, Math.sin(a) * r);
+        sp.m.scale.setScalar(1 - f * 0.7);
+        sp.m.rotation.y = a;
+      }
+    };
+    return fx;
+  }
+
+  // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
+  const GREENS = [0x86c95a, 0x6fb548, 0x9bd66a, 0x5fa843, 0xa8d46b, 0x78c25e];
+  const randomGreen = () => GREENS[Math.floor(Math.random() * GREENS.length)];
+
+  function makeTile(cell) {
+    const g = new THREE.Group();
+    const top = cell.kind === 'oneway' ? 0xd8c79a : cell.kind === 'ice' ? 0xbfe8f7 : cell.base === 'lock' ? 0xffffff : (cell.green || randomGreen());
+    const ice = cell.kind === 'ice';
+    // El hielo es un bloque azul entero (superficie brillante, cuerpo y raíz azulados)
+    const iceMat = (c, e) => new THREE.MeshStandardMaterial({ color: c, emissive: e, emissiveIntensity: 0.2, roughness: 0.35, metalness: 0.1 });
+    const parts = [
+      [G.grass, ice ? iceMat(0x8fcfec, 0x2a6f99) : cell.base === 'lock' ? concreteMat : lam(top), -0.07],
+      [G.dirtSide, ice ? iceMat(0x4fb0e6, 0x1a6fa8) : lam(0x8a5a3b), -0.34],
+      [G.rock, ice ? iceMat(0x3d8cc4, 0x123f66) : lam(0x6e5b4e), -0.9],
+    ];
+    for (const [geo, mat, y] of parts) {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.y = y; m.castShadow = true; m.receiveShadow = true;
+      if (geo === G.rock) { m.rotation.x = Math.PI; m.rotation.y = Math.PI / 4; }
+      m.userData.key = cell.key;
+      if (geo === G.grass) cell.top = m;
+      g.add(m);
+    }
+    if (cell.kind === 'oneway') {
+      const holder = new THREE.Group();
+      const a = new THREE.Mesh(G.arrow, new THREE.MeshBasicMaterial({ color: 0x8a6b3a, transparent: true }));
+      a.rotation.x = -Math.PI / 2; a.position.set(0, 0.006, 0.3); a.scale.setScalar(0.5);
+      holder.add(a); holder.rotation.y = YAW[cell.dir];
+      g.add(holder);
+      cell.arrow = holder;
+      // Barandas en las caras por las que no se puede entrar
+      const rails = new THREE.Group();
+      for (const side of Object.keys(DIRS)) if (side !== OPP[cell.dir]) {
+        const r = makeRail(); r.rotation.y = YAW[side]; rails.add(r);
+      }
+      g.add(rails); cell.rails = rails;
+    }
+    if (cell.kind === 'lock') {
+      // Barrera industrial: vallas con franjas amarillas y negras por los 4 lados,
+      // con una luz del color de su interruptor en cada poste
+      const col = KEY_COLORS[cell.color] || 0xffffff;
+      const lamp = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6 });
+      const rails = new THREE.Group();
+      for (const side of Object.keys(DIRS)) {
+        const r = new THREE.Group();
+        for (const x of [-0.42, 0.42]) {
+          const post = new THREE.Mesh(G_IPOST, postMat); post.position.set(x, 0.17, -0.43); post.castShadow = true; r.add(post);
+          const l = new THREE.Mesh(G_LAMP, lamp); l.position.set(x, 0.36, -0.43); r.add(l);
+        }
+        for (const y of [0.25, 0.1]) {
+          const bar = new THREE.Mesh(G_PLANK, stripeMat); bar.position.set(0, y, -0.43); bar.castShadow = true; r.add(bar);
+        }
+        r.rotation.y = YAW[side]; rails.add(r);
+      }
+      g.add(rails); cell.rails = rails;
+    }
+    if (cell.base === 'key') {
+      // Interruptor: botón grande en el suelo del color de sus barreras
+      const col = KEY_COLORS[cell.color] || 0xffffff;
+      const base = new THREE.Mesh(G_BTN_BASE, postMat); base.position.y = 0.025; base.receiveShadow = true;
+      const cap = new THREE.Mesh(G_BTN_CAP, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.15, roughness: 0.4 }));
+      cap.position.y = 0.09; cap.castShadow = true;
+      if (cell.kind !== 'key') { cap.position.y = 0.03; cap.material.emissiveIntensity = 0.75; }  // ya pulsado
+      g.add(base, cap); cell.button = cap;
+    }
+    if (cell.kind === 'ice') {
+      // Reflejos sobre el hielo
+      const shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+      for (const [x, z, len] of [[-0.18, -0.12, 0.42], [0.12, 0.16, 0.28], [0.26, -0.26, 0.16]]) {
+        const st = new THREE.Mesh(new THREE.BoxGeometry(len, 0.01, 0.05), shine);
+        st.position.set(x, 0.005, z); st.rotation.y = Math.PI / 4;
+        g.add(st);
+      }
+    }
+    if (cell.kind === 'portal') {
+      g.add(cell.portalFx = makePortalFx(PORTAL_COLORS[cell.color] || 0xffffff));
+    }
+    cell.gems = [];
+    for (let i = 0; i < cell.coins; i++) {
+      const gem = cell.star ? makeStarMesh() : new THREE.Mesh(G.gem, gemMat.clone());
+      const r = cell.coins === 1 ? 0 : 0.2;
+      const a = (i / cell.coins) * Math.PI * 2 + Math.PI / 4;
+      gem.position.set(Math.cos(a) * r, 0.34, Math.sin(a) * r);
+      gem.userData.phase = Math.random() * 6;
+      g.add(gem); cell.gems.push(gem);
+    }
+    if (cell.star) {
+      const holder = new THREE.Group();
+      const bg = new THREE.Mesh(new THREE.RingGeometry(0.36, 0.44, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }));
+      const fg = new THREE.Mesh(new THREE.RingGeometry(0.36, 0.44, 40), new THREE.MeshBasicMaterial({ color: 0xff3b4e, transparent: true, depthWrite: false }));
+      bg.rotation.x = fg.rotation.x = -Math.PI / 2;
+      bg.position.y = 0.012; fg.position.y = 0.016;
+      holder.add(bg, fg); g.add(holder);
+      cell.star.ring = fg; cell.star.holder = holder;
+    }
+    return g;
+  }
+
+  function makePlayer() {
+    const p = new THREE.Group();
+    const body = new THREE.Group(); p.add(body);
+    const add = (geo, color, x, y, z) => {
+      const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = true; body.add(m); return m;
+    };
+    add(new THREE.BoxGeometry(0.34, 0.34, 0.26), 0xff7a59, 0, 0.2, 0);
+    add(new THREE.BoxGeometry(0.3, 0.28, 0.28), 0xffd9b5, 0, 0.51, 0);
+    add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, -0.07, 0.53, -0.145);
+    add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, 0.07, 0.53, -0.145);
+    add(new THREE.BoxGeometry(0.34, 0.08, 0.32), 0x3b6ea5, 0, 0.67, 0.01);
+    p.userData.body = body;
+    return p;
+  }
+  let player = makePlayer();
+  scene.add(player);
+  function freshPlayer() {
+    if (player.parent) player.parent.remove(player);
+    player = makePlayer(); scene.add(player);
+  }
+
+  // ---------- Estado del juego ----------
+  let L = 0, cells = {}, pos = null, remaining = 0, W = 0, H = 0;
+  let timersOn = false, starStatus = [];
+  let rippleT = -1, rippleO = [0, 0];
+  const tmpV = new THREE.Vector3();
+  let phase = 'idle'; // idle | moving | won | intro
+  let queued = null;
+  const tweens = [], falling = [];
+  const key = (x, z) => x + ',' + z;
+  const toWorld = (x, z) => new THREE.Vector3(x - (W - 1) / 2, 0, z - (H - 1) / 2);
+
+  const $ = id => document.getElementById(id);
+  const banner = $('banner');
+  function showBanner(html, cls) {
+    banner.innerHTML = html; banner.className = cls; banner.hidden = false;
+    document.body.classList.toggle('locked', cls === 'stuck');
+  }
+  function hideBanner() { banner.hidden = true; document.body.classList.remove('locked'); }
+  // Botón clicable dentro del cartel (el cartel en sí no captura clics)
+  const RETRY = '<button class="retry" type="button">↺ Reintentar</button>';
+  banner.addEventListener('click', e => { if (e.target.closest('.retry')) restart(); if (e.target.closest('.undo')) undo(); });
+  function setCount(n, pop) {
+    const el = $('count'); el.textContent = n;
+    if (pop) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+  }
+
+  function tween(dur, update, done) { tweens.push({ t: 0, dur, update, done }); }
+  const ease = k => 1 - Math.pow(1 - k, 3);
+
+  function dropObject(obj) {
+    obj.traverse(o => {
+      if (o.material) { o.material = o.material.clone(); o.material.transparent = true; }
+    });
+    falling.push({ obj, vy: 0, t: 0, spin: (Math.random() - 0.5) * 2 });
+  }
+
+  function loadLevel(i, withIntro = true) {
+    L = i;
+    tweens.length = 0;
+    if (player.parent !== scene) freshPlayer();
+    player.scale.set(1, 1, 1);
+    while (world.children.length) world.remove(world.children[0]);
+    rippleT = -1;
+    cells = {}; hideBanner(); queued = null;
+    history = []; endSlow(); pendingSlow = false;
+    const def = LEVELS[i];
+    const grid = def.rows.map(r => r.trim().split(/\s+/));
+    H = grid.length; W = Math.max(...grid.map(r => r.length));
+    remaining = 0;
+    grid.forEach((row, z) => row.forEach((t, x) => {
+      if (t === '.') return;
+      const c = { key: key(x, z), x, z, kind: 'normal', coins: 0 };
+      if (t === 'S') pos = [x, z];
+      else if (/^\d$/.test(t)) c.coins = +t;
+      else if (ARROW[t]) { c.kind = 'oneway'; c.dir = ARROW[t]; }
+      else if (/^[a-z]$/.test(t)) { c.kind = 'portal'; c.color = t; }
+      else if (t === '+') c.kind = 'ice';
+      else if (/^K\d$/.test(t)) { c.kind = 'key'; c.color = t[1]; }
+      else if (/^L\d(:\d)?$/.test(t)) { c.kind = 'lock'; c.color = t[1]; c.coins = t[3] ? +t[3] : 1; }
+      c.base = c.kind; c.green = randomGreen();
+      remaining += c.coins;
+      cells[c.key] = c;
+    }));
+    for (const c of Object.values(cells)) if (c.kind === 'portal')
+      c.pair = Object.values(cells).find(o => o !== c && o.kind === 'portal' && o.color === c.color).key;
+
+    // Estrellas: solo en casillas normales de 1 gema
+    timersOn = false; starStatus = [];
+    (def.stars || []).forEach(([x, z, t]) => {
+      const c = cells[key(x, z)];
+      if (c && c.kind === 'normal' && c.coins === 1) { c.star = { time: t, left: t, idx: starStatus.length }; starStatus.push('pending'); }
+    });
+    renderStars();
+
+    // El mapa aparece subiendo desde abajo, casilla por casilla
+    let idx = 0, maxIntro = 0;
+    for (const c of Object.values(cells)) {
+      // c.outer = hueco de la cuadrícula (sube al aparecer); c.group = el bloque que flota
+      // y es el padre de todo lo que tiene encima (gemas, vallas, portal, jugador)
+      c.group = makeTile(c);
+      c.outer = new THREE.Group();
+      c.outer.add(c.group);
+      const home = toWorld(c.x, c.z);
+      c.outer.position.copy(home); c.outer.position.y = 5;
+      world.add(c.outer);
+      c.bobAmp = 0.011 + Math.random() * 0.009;
+      c.bobSpeed = 0.9 + Math.random() * 0.8;
+      c.bobPhase = Math.random() * Math.PI * 2;
+      // Orden aleatorio: todos caen casi a la vez, cada uno con un pequeño retraso al azar
+      const delay = withIntro ? Math.random() * 0.6 : Math.random() * 0.15;
+      const dur = withIntro ? 1.1 : 0.6;
+      maxIntro = Math.max(maxIntro, delay + dur);
+      const g = c.outer;
+      // Los bloques bajan suavemente desde arriba, uno tras otro, apareciendo (fade in) mientras caen
+      const faders = [];
+      g.traverse(o => {
+        if (!o.material) return;
+        o.material = o.material.clone();
+        o.userData.baseOpacity = o.material.opacity;
+        o.userData.wasTransparent = o.material.transparent;
+        o.material.transparent = true; o.material.opacity = 0;
+        faders.push(o);
+      });
+      tween(dur + delay, k => {
+        const kk = Math.min(1, Math.max(0, (k * (dur + delay) - delay) / dur));
+        g.position.y = 5 * Math.pow(1 - kk, 3);
+        const a = Math.min(1, kk * 1.5);
+        for (const o of faders) o.material.opacity = o.userData.baseOpacity * a;
+      }, () => {
+        g.position.y = 0;
+        for (const o of faders) {
+          o.material.opacity = o.userData.baseOpacity;
+          o.material.transparent = o.userData.wasTransparent;
+          o.material.needsUpdate = true;
+        }
+      });
+      idx++;
+    }
+    $('lvl').textContent = `NIVEL ${i + 1} / ${LEVELS.length} · ${def.name.toUpperCase()}`;
+    $('hint').textContent = def.hint;
+    setCount(remaining);
+    document.querySelectorAll('#dots button').forEach((b, j) => b.classList.toggle('on', j === i));
+    fitCamera();
+
+    // El jugador cae del cielo sobre la casilla de inicio
+    phase = 'intro';
+    player.visible = false;
+    const start = toWorld(pos[0], pos[1]);
+    player.rotation.y = YAW.E;   // aparece mirando hacia abajo a la derecha (hacia la cámara)
+    const wait = maxIntro + 0.05;
+    tween(wait, () => {}, () => {
+      player.visible = true;
+      player.scale.set(1, 1, 1);
+      player.position.set(start.x, 9, start.z);
+      tween(0.55, k => { player.position.y = 9 * (1 - k * k); }, () => {
+        const sc = cells[key(pos[0], pos[1])];
+        sc.group.attach(player); player.position.set(0, 0, 0);
+        rippleT = clock.elapsedTime; rippleO = pos.slice();
+        Snd.sfx.land();
+        squash();
+        phase = 'idle';
+        checkStuck();
+      });
+    });
+  }
+
+  function squash() {
+    const b = player.userData.body;
+    tween(0.25, k => {
+      const s = Math.sin(k * Math.PI) * 0.25;
+      b.scale.set(1 + s, 1 - s, 1 + s);
+    }, () => b.scale.set(1, 1, 1));
+  }
+
+  // Desde (x,z) en dirección d: atraviesa el hielo que haya y devuelve dónde acabas.
+  // null si el destino es un hueco o una flecha que no deja entrar por ahí.
+  function resolveMove(get, x, z, d) {
+    const [dx, dz] = DIRS[d];
+    const ices = [];
+    let cx = x + dx, cz = z + dz;
+    for (;;) {
+      const c = get(key(cx, cz));
+      // Resbalar del hielo a un hueco sí se permite: el jugador cae y pierde
+      if (!c) return ices.length ? { ices, dest: null, fall: [cx, cz] } : null;
+      if (c.kind === 'oneway' && c.dir !== d) return null;
+      if (c.kind === 'lock') return null;
+      if (c.kind !== 'ice') return { ices, dest: key(cx, cz) };
+      ices.push(key(cx, cz)); cx += dx; cz += dz;
+    }
+  }
+  // Movimientos que no terminan en caída (para detectar "sin salida")
+  function canMove(d) { const r = resolveMove(k => cells[k], pos[0], pos[1], d); return !!r && !r.fall; }
+
+  function bump(d) {
+    Snd.sfx.bump();
+    const [dx, dz] = DIRS[d];
+    const base = player.position.clone();
+    player.rotation.y = YAW[d];
+    phase = 'moving';
+    tween(0.16, k => {
+      const s = Math.sin(k * Math.PI) * 0.12;
+      player.position.set(base.x + dx * s, 0, base.z + dz * s);
+    }, () => { player.position.copy(base); phase = 'idle'; });
+  }
+
+  function move(d) {
+    if (phase === 'moving') { queued = d; return; }
+    if (phase !== 'idle') return;
+    const res = resolveMove(k => cells[k], pos[0], pos[1], d);
+    if (!res) { bump(d); return; }
+    pushHistory();
+    timersOn = true;
+    hideBanner();
+    clearHints();
+    const cur = cells[key(pos[0], pos[1])];
+    const target = res.fall ? null : cells[res.dest];
+    const ices = res.ices.map(k => cells[k]);
+    ices.forEach(c => delete cells[c.key]);
+
+    // La casilla que dejas se cae si ya no tiene gemas
+    if (cur.coins === 0) { delete cells[cur.key]; dropObject(cur.group); Snd.sfx.fall(); }
+
+    phase = 'moving';
+    player.rotation.y = YAW[d];
+    // Salto a la primera casilla; si es hielo, resbala recto hasta el destino
+    const stops = [...ices, target || { fall: true, x: res.fall[0], z: res.fall[1] }];
+    if (player.parent !== scene) scene.attach(player);
+    const segment = (i, from) => {
+      const c = stops[i];
+      const live = () => (c.group ? c.group.getWorldPosition(tmpV) : tmpV.copy(toWorld(c.x, c.z)));
+      const hop = i === 0;
+      // Si el destino es un portal, ese mismo salto es la zambullida: sube en seno, cae dentro
+      // del remolino girando y encogiéndose, y el portal se encoge hasta desaparecer
+      const dive = c.kind === 'portal' && i === stops.length - 1;
+      const rot0 = player.rotation.y;
+      if (i === 0) { if (dive) Snd.sfx.portalIn(); else Snd.sfx.hop(); if (c.kind === 'ice') Snd.sfx.slide(0.2 + (stops.length - 1) * 0.12); }
+      tween(dive ? 0.45 : hop ? 0.17 : 0.12, k => {
+        player.position.lerpVectors(from, live(), dive ? Math.min(1, k * 1.6) : k);
+        if (dive) {
+          player.position.y += 0.42 * Math.sin(Math.PI * 1.35 * k);
+          player.scale.setScalar(k < 0.5 ? 1 : 1 - ((k - 0.5) / 0.5) * 0.92);
+          player.rotation.y = rot0 + k * Math.PI * 2;
+          c.portalFx.scale.setScalar(k < 0.45 ? 1 : Math.max(0.001, 1 - (k - 0.45) / 0.55));
+        } else if (hop) player.position.y += Math.sin(k * Math.PI) * (c.kind === 'ice' ? 0.18 : 0.32);
+      }, () => {
+        const to = live().clone();
+        player.position.copy(to);
+        if (i < stops.length - 1) { dropObject(c.group); segment(i + 1, to); return; }
+        if (c.fall) return fallOff();
+        pos = [target.x, target.z];
+        if (target.kind === 'portal') enterPortal(target);
+        else {
+          target.group.attach(player); player.position.set(0, 0, 0);
+          if (target.kind === 'oneway') openOneway(target);
+          if (target.kind === 'key') useKey(target);
+          collect(target); afterMove();
+        }
+      });
+    };
+    segment(0, player.position.clone());
+  }
+
+  function fallOff() {
+    phase = 'lost'; queued = null;
+    dropObject(player);
+    Snd.sfx.voidFall();
+    showBanner('Te caíste al vacío' + lostButtons(), 'stuck');
+    unlockAchievement('edge', 'Al borde del mundo', 'Resbalaste por el hielo hasta el vacío.');
+  }
+
+  function collect(c) {
+    if (c.coins <= 0) return;
+    c.coins--; remaining--;
+    setCount(remaining, true);
+    const gem = c.gems.pop();
+    if (gem.userData.isStar && c.star) Snd.sfx.star(); else Snd.sfx.gem(remaining);
+    if (gem.userData.isStar && c.star) {
+      starStatus[c.star.idx] = 'got';
+      c.group.remove(c.star.holder); c.star = null;
+      renderStars();
+    }
+    gem.material.transparent = true;
+    const y0 = gem.position.y;
+    tween(0.4, k => {
+      gem.position.y = y0 + k * 0.8;
+      gem.scale.setScalar(1 + k * 0.6);
+      gem.material.opacity = 1 - k;
+    }, () => c.group.remove(gem));
+    squash();
+  }
+
+  // Pisar un interruptor: el botón se hunde y se iluminan; las barreras de su color se bajan
+  function useKey(c) {
+    Snd.sfx.button(); Snd.sfx.barrier();
+    c.kind = 'normal';
+    const cap = c.button;
+    tween(0.15, k => { cap.position.y = 0.09 - 0.06 * k; cap.material.emissiveIntensity = 0.15 + 0.6 * k; });
+    for (const l of Object.values(cells)) if (l.kind === 'lock' && l.color === c.color) openLock(l);
+  }
+  function openLock(l) {
+    l.kind = 'normal';
+    const rails = l.rails;
+    tween(0.6, k => { rails.position.y = -0.4 * ease(k); }, () => l.group.remove(rails));
+  }
+
+  // Las barandas se hunden en la tierra, la flecha se desvanece y queda un bloque normal
+  function openOneway(c) {
+    Snd.sfx.gate();
+    c.kind = 'normal';
+    const rails = c.rails, arrow = c.arrow, top = c.top.material;
+    const from = top.color.clone(), to = new THREE.Color(c.green || randomGreen());
+    const am = arrow.children[0].material;
+    tween(0.4, k => {
+      const e = ease(k);
+      rails.position.y = -0.34 * e;
+      am.opacity = 1 - e;
+      top.color.copy(from).lerp(to, e);
+    }, () => { c.group.remove(rails); c.group.remove(arrow); });
+  }
+
+  function enterPortal(p) {
+    const other = cells[p.pair];
+    phase = 'moving';
+    // La zambullida ya ocurrió en el salto hacia el portal; el portal de entrada desaparece
+    p.group.remove(p.portalFx); p.portalFx = null;
+    {
+      delete cells[p.key]; dropObject(p.group);
+      // Salida: sale disparado del otro portal, que se queda como casilla normal sin gemas
+      other.kind = 'normal';
+      const fx = other.portalFx;
+      tween(0.35, k => fx.scale.setScalar(1 - k), () => other.group.remove(fx));
+      other.group.attach(player); player.position.set(0, -0.3, 0);
+      Snd.sfx.portalOut();
+      pos = [other.x, other.z];
+      const rot1 = player.rotation.y;
+      tween(0.62, k => {
+        player.position.y = -0.3 * (1 - k) + 1.25 * Math.sin(Math.PI * k);   // arco alto que aterriza en el bloque
+        player.scale.setScalar(Math.min(1, 0.08 + k * 3.7));
+        player.rotation.y = rot1 + Math.min(1, k * 1.4) * Math.PI * 2;
+      }, () => {
+        player.position.set(0, 0, 0); player.scale.set(1, 1, 1); player.rotation.y = rot1;
+        squash();
+        afterMove();
+      });
+    }
+  }
+
+  function afterMove() {
+    if (remaining === 0) return win();
+    phase = 'idle';
+    if (queued) { const q = queued; queued = null; move(q); return; }
+    if (maybeHintTutorial()) return;
+    if (maybeUndoTutorial()) return;
+    checkStuck();
+  }
+
+  function checkStuck() {
+    if (phase !== 'idle' || remaining === 0) return;
+    if (!Object.keys(DIRS).some(canMove)) {
+      phase = 'lost'; queued = null;
+      Snd.sfx.lose();
+      showBanner('Sin salida<small>No te quedan movimientos.</small>' + lostButtons(), 'stuck');
+    }
+  }
+
+  function win() {
+    phase = 'won'; queued = null;
+    Snd.sfx.win();
+    const got = starStatus.filter(s => s === 'got').length;
+    saveBest(L, got);
+    // Monedas: 5 por pasar el nivel la primera vez + 10 por cada estrella que mejore tu récord anterior
+    const prev = prog.paid[L];
+    const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
+    prog.paid[L] = Math.max(prev || 0, got);
+    addCoins(earned);
+    const coinLine = earned > 0 ? `<small>+${earned} monedas</small>` : '<small>Sin monedas nuevas: mejora tus estrellas para ganar más</small>';
+    showBanner('¡Nivel superado!<span class="wstars">' + [0, 1, 2].map(i => `<span class="${i < got ? 'got' : 'off'}">★</span>`).join('') + '</span>' + coinLine, 'win');
+    const last = L === LEVELS.length - 1;
+    tween(0.9, () => {}, () => {
+      // Cae la última casilla con el jugador encima (y cualquier casilla que quede)
+      const here = cells[key(pos[0], pos[1])];
+      for (const c of Object.values(cells)) if (c !== here) dropObject(c.group);
+      if (here) {
+        here.group.attach(player);
+        dropObject(here.group);
+      }
+      cells = {};
+      tween(1.5, () => {}, () => {
+        freshPlayer();
+        hideBanner();
+        if (last) {
+          showBanner('¡Has completado Uplands!<small>Elige un nivel abajo para volver a jugar</small>', 'win');
+          player.visible = false; phase = 'done';
+        } else loadLevel(L + 1);
+      });
+    });
+  }
+
+  // ---------- Estrellas: HUD y mejor resultado ----------
+  function renderStars() {
+    $('stars').innerHTML = starStatus.map(s => `<span class="${s === 'got' ? 'got' : s === 'lost' ? 'lost' : ''}">★</span>`).join('');
+  }
+  let best = {};
+  try { best = JSON.parse(localStorage.getItem('uplands-best') || '{}') || {}; } catch (e) { best = {}; }
+  function saveBest(i, n) {
+    if (best[i] === undefined || n > best[i]) best[i] = n;
+    try { localStorage.setItem('uplands-best', JSON.stringify(best)); } catch (e) {}
+    renderDots();
+  }
+  function renderDots() {
+    document.querySelectorAll('#dots button').forEach((b, j) => {
+      const n = best[j];
+      b.querySelector('.best').textContent = n === undefined ? '' : '★'.repeat(n) + '☆'.repeat(3 - n);
+    });
+  }
+  function tickStars(dt, time) {
+    if (!timersOn || (phase !== 'idle' && phase !== 'moving')) return;
+    for (const c of Object.values(cells)) {
+      if (!c.star) continue;
+      const st = c.star, star = c.gems[0];
+      st.left -= dt;
+      if (st.left <= 0) {
+        // Se apaga: vuelve a ser una gema normal
+        c.group.remove(star); c.group.remove(st.holder);
+        const gem = new THREE.Mesh(G.gem, gemMat.clone());
+        gem.position.copy(star.position); gem.userData.phase = star.userData.phase;
+        c.group.add(gem); c.gems[0] = gem;
+        starStatus[st.idx] = 'lost'; c.star = null;
+        if (!prog.slowUnlocked) pendingSlow = true;
+        Snd.sfx.starLost();
+        renderStars();
+        continue;
+      }
+      setRing(c);
+      const f = st.left / st.time;
+      star.visible = f > 0.3 || Math.floor(time * (4 + (0.3 - f) * 50)) % 2 === 0;
+    }
+  }
+
+  // ---------- Economía, logros y tutorial de la pista ----------
+  const COIN_CLEAR = 5, COIN_STAR = 10, COIN_ACH = 25, HINT_COST = 15, UNDO_COST = 40, SLOW_COST = 20, SLOW_DUR = 15;
+  let prog = { coins: 0, paid: {}, hintUnlocked: false, undoUnlocked: false, slowUnlocked: false, ach: {}, free: { hint: true, undo: true, slow: true } };
+  try { prog = Object.assign(prog, JSON.parse(localStorage.getItem('uplands-progress') || '{}')); } catch (e) {}
+  const saveProg = () => { try { localStorage.setItem('uplands-progress', JSON.stringify(prog)); } catch (e) {} };
+  function renderCoins(pop) {
+    const el = $('coins'); el.textContent = prog.coins;
+    if (pop) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    const price = (k, c) => (prog.free[k] ? 'Gratis' : c);
+    $('hintBtn').hidden = !prog.hintUnlocked;
+    const setCost = (id, v) => { $(id).querySelector('.cost').innerHTML = v === 'Gratis' ? 'Gratis' : `<span class="coin"></span>${v}`; };
+    setCost('hintBtn', price('hint', HINT_COST));
+    $('undoBtn').hidden = !prog.undoUnlocked;
+    setCost('undoBtn', price('undo', UNDO_COST));
+    $('slowBtn').hidden = !prog.slowUnlocked;
+    if (slowLeft <= 0) setCost('slowBtn', price('slow', SLOW_COST));
+  }
+  // Cobra un potenciador: el primer uso de cada uno es gratis
+  function payFor(kind, cost, label) {
+    if (prog.free[kind]) { prog.free[kind] = false; saveProg(); renderCoins(); return true; }
+    if (prog.coins < cost) { toast('Te faltan monedas', `${label} cuesta ${cost}. Tienes ${prog.coins}.`); return false; }
+    addCoins(-cost);
+    return true;
+  }
+  function addCoins(n) { if (!n) return; if (n > 0) Snd.sfx.coin(); prog.coins = Math.max(0, prog.coins + n); saveProg(); renderCoins(true); }
+  let toastTimer = 0;
+  function toast(title, sub) {
+    const t = $('toast');
+    t.innerHTML = `<span class="coin"></span><span><b>${title}</b><small>${sub}</small></span>`;
+    t.hidden = false; t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
+  }
+  // Logros ocultos: solo se anuncian al conseguirlos
+  function unlockAchievement(id, name, desc) {
+    if (prog.ach[id]) return;
+    prog.ach[id] = true; addCoins(COIN_ACH); Snd.sfx.achieve();
+    toast(`Logro: ${name}`, `${desc} +${COIN_ACH} monedas`);
+  }
+  // Modal genérico: pausa el juego hasta que se elige una acción
+  function openModal(title, body, actions) {
+    phase = 'modal'; queued = null;
+    $('modalTitle').innerHTML = title;
+    $('modalBody').innerHTML = body;
+    const box = $('modalActions'); box.innerHTML = '';
+    for (const a of actions) {
+      const b = document.createElement('button');
+      b.textContent = a.label; if (a.primary) b.className = 'primary';
+      b.addEventListener('click', () => { Snd.sfx.click(); $('modal').hidden = true; phase = 'idle'; a.onClick && a.onClick(); });
+      box.appendChild(b);
+    }
+    $('modal').hidden = false;
+    box.lastChild.focus();
+  }
+  const costLine = (txt) => `<div class="cost"><span class="coin"></span><span>${txt}</span></div>`;
+  const unlock = (k) => { prog[k] = true; saveProg(); renderCoins(); };
+
+  // Pista: la primera vez que el jugador llega a un cruce (3+ caminos) desde el nivel 3
+  function maybeHintTutorial() {
+    if (prog.hintUnlocked || L < 2) return false;
+    if (Object.keys(DIRS).filter(canMove).length < 3) return false;
+    openModal('✦ Pistas',
+      '<p>Has llegado a un cruce. Si no sabes por dónde seguir, pide una pista: se iluminan las casillas que todavía llevan a la solución.</p>' +
+      costLine(`La primera es gratis. Después cuesta ${HINT_COST} monedas. Tienes ${prog.coins}.`) +
+      '<p>Las monedas se ganan pasando niveles por primera vez, consiguiendo estrellas nuevas y con algún que otro secreto.</p>',
+      [{ label: 'Entendido', primary: true, onClick: () => { unlock('hintUnlocked'); checkStuck(); } }]);
+    return true;
+  }
+
+  // Deshacer: se propone la primera vez que un movimiento deja el nivel sin solución
+  let history = [];
+  function pushHistory() {
+    history.push({
+      pos: pos.slice(), remaining, timersOn, starStatus: starStatus.slice(),
+      cells: Object.values(cells).map(c => ({
+        key: c.key, x: c.x, z: c.z, kind: c.kind, base: c.base, coins: c.coins, dir: c.dir, color: c.color, pair: c.pair,
+        green: c.green, bobAmp: c.bobAmp, bobSpeed: c.bobSpeed, bobPhase: c.bobPhase,
+        star: c.star ? { time: c.star.time, left: c.star.left, idx: c.star.idx } : null,
+      })),
+    });
+    if (history.length > 300) history.shift();
+  }
+  function maybeUndoTutorial() {
+    if (prog.undoUnlocked || !history.length) return false;
+    const budget = { n: 200000 };
+    const ok = solvable(snapshot(), key(pos[0], pos[1]), new Map(), budget);
+    if (ok || budget.n < 0) return false;   // si no se pudo comprobar del todo, no molestamos
+    openModal('↶ Deshacer',
+      '<p>Con ese movimiento ya no puedes recoger todas las gemas.</p>' +
+      '<p>Puedes deshacerlo y volver un paso atrás: las casillas caídas y las gemas vuelven a su sitio.</p>' +
+      costLine(`La primera vez es gratis. Después cuesta ${UNDO_COST} monedas.`),
+      [{ label: 'Seguir así', onClick: () => { unlock('undoUnlocked'); checkStuck(); } },
+       { label: '↶ Deshacer gratis', primary: true, onClick: () => { unlock('undoUnlocked'); undo(); } }]);
+    return true;
+  }
+  function lostButtons() {
+    return RETRY + (prog.undoUnlocked && history.length ? `<button class="undo" type="button">↶ Deshacer · ${prog.free.undo ? 'Gratis' : UNDO_COST}</button>` : '');
+  }
+  function undo() {
+    if (!prog.undoUnlocked || !history.length) return;
+    if (phase !== 'idle' && phase !== 'lost') return;
+    if (!payFor('undo', UNDO_COST, 'Deshacer')) return;
+    restoreState(history.pop());
+  }
+  // Reconstruye el tablero tal como estaba antes del último movimiento
+  function restoreState(snap) {
+    Snd.sfx.undo();
+    hideBanner(); queued = null;
+    for (const c of Object.values(cells)) if (c.outer && c.outer.parent) c.outer.parent.remove(c.outer);
+    const facing = player.rotation.y;
+    freshPlayer();
+    player.rotation.y = facing;   // al deshacer mantiene hacia dónde miraba
+    cells = {};
+    for (const sc of snap.cells) {
+      const c = { ...sc, star: sc.star ? { ...sc.star } : null };
+      c.group = makeTile(c);
+      c.outer = new THREE.Group(); c.outer.add(c.group);
+      c.outer.position.copy(toWorld(c.x, c.z));
+      world.add(c.outer);
+      cells[c.key] = c;
+    }
+    pos = snap.pos.slice(); remaining = snap.remaining; setCount(remaining);
+    starStatus = snap.starStatus.slice(); renderStars(); timersOn = snap.timersOn;
+    rippleT = clock.elapsedTime - 10;   // sin ondas: directamente a flotar
+    const here = cells[key(pos[0], pos[1])];
+    here.group.add(player); player.position.set(0, 0, 0); player.visible = true;
+    phase = 'idle';
+    squash();
+    checkStuck();
+  }
+
+  // Cámara lenta: se presenta la primera vez que se apaga una estrella
+  let slowLeft = 0, pendingSlow = false;
+  function openSlowTutorial() {
+    const anyLeft = starStatus.includes('pending');
+    openModal('⏳ Cámara lenta',
+      '<p>Se te escapó una estrella.</p>' +
+      `<p>La cámara lenta hace que el mundo vaya a la mitad de velocidad durante ${SLOW_DUR} segundos, así que las estrellas tardan el doble en apagarse. Tú te sigues moviendo igual de rápido.</p>` +
+      costLine(`La primera vez es gratis. Después cuesta ${SLOW_COST} monedas.`),
+      anyLeft
+        ? [{ label: 'Ahora no', onClick: () => unlock('slowUnlocked') },
+           { label: '⏳ Probar gratis', primary: true, onClick: () => { unlock('slowUnlocked'); activateSlow(); } }]
+        : [{ label: 'Entendido', primary: true, onClick: () => unlock('slowUnlocked') }]);
+  }
+  function activateSlow() {
+    if (slowLeft > 0 || (phase !== 'idle' && phase !== 'moving')) return;
+    if (!payFor('slow', SLOW_COST, 'La cámara lenta')) return;
+    slowLeft = SLOW_DUR;
+    document.body.classList.add('slow');
+    Snd.sfx.slowOn(); Snd.setSlow(true);
+    $('slowBtn').classList.add('active');
+  }
+  function endSlow() {
+    if (document.body.classList.contains('slow')) { Snd.sfx.slowOff(); Snd.setSlow(false); }
+    slowLeft = 0;
+    document.body.classList.remove('slow');
+    $('slowBtn').classList.remove('active');
+    renderCoins();
+  }
+  renderCoins();
+
+  // ---------- Pista: qué movimientos siguen llevando a una solución ----------
+  // Simula las mismas reglas del juego sobre una copia del estado actual.
+  function snapshot() {
+    const s = {};
+    for (const c of Object.values(cells)) s[c.key] = { kind: c.kind, coins: c.coins, dir: c.dir, pair: c.pair, color: c.color };
+    return s;
+  }
+  function step(s, p, d) {
+    const [x, z] = p.split(',').map(Number);
+    const res = resolveMove(k => s[k], x, z, d);
+    if (!res || res.fall) return null;
+    const tk = res.dest, t = s[tk], first = res.ices[0] || tk;
+    const n = { ...s };
+    if (n[p].coins === 0) delete n[p];
+    res.ices.forEach(k => delete n[k]);
+    if (t.kind === 'portal') { delete n[tk]; n[t.pair] = { kind: 'normal', coins: 0 }; return [n, t.pair, first]; }
+    const t2 = { ...t, kind: 'normal' };
+    if (t2.coins > 0) t2.coins--;
+    n[tk] = t2;
+    if (t.kind === 'key') for (const k in n) if (n[k].kind === 'lock' && n[k].color === t.color) n[k] = { ...n[k], kind: 'normal' };
+    return [n, tk, first];
+  }
+  function solvable(s, p, memo, budget) {
+    let rem = 0;
+    for (const k in s) rem += s[k].coins;
+    if (rem === 0) return true;
+    const sig = p + '|' + Object.keys(s).sort().map(k => k + ':' + s[k].coins + s[k].kind[0]).join(';');
+    if (memo.has(sig)) return memo.get(sig);
+    if (--budget.n < 0) return false;
+    let ok = false;
+    for (const d of Object.keys(DIRS)) {
+      const r = step(s, p, d);
+      if (r && solvable(r[0], r[1], memo, budget)) { ok = true; break; }
+    }
+    memo.set(sig, ok);
+    return ok;
+  }
+  const hintGeo = new THREE.PlaneGeometry(0.86, 0.86);
+  const hintFrameGeo = new THREE.RingGeometry(0.44, 0.5, 4, 1, Math.PI / 4);
+  function clearHints() {
+    for (const c of Object.values(cells)) if (c.hintFx) { c.group.remove(c.hintFx); c.hintFx = null; }
+  }
+  function showHint() {
+    if (phase !== 'idle' || !pos || !prog.hintUnlocked) return;
+    if (!payFor('hint', HINT_COST, 'Una pista')) return;
+    clearHints();
+    const s = snapshot(), p = key(pos[0], pos[1]), memo = new Map(), budget = { n: 400000 };
+    const good = [];
+    for (const d of Object.keys(DIRS)) {
+      const r = step(s, p, d);
+      if (r && solvable(r[0], r[1], memo, budget)) good.push(r[2]);
+    }
+    if (!good.length) {
+      phase = 'lost'; queued = null;
+      Snd.sfx.lose();
+      showBanner('Ningún movimiento lleva a la solución' + lostButtons(), 'stuck');
+      return;
+    }
+    hideBanner();
+    Snd.sfx.hint();
+    for (const k of good) {
+      const c = cells[k];
+      const m = new THREE.Group();
+      const fill = new THREE.Mesh(hintGeo, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.7, depthWrite: false }));
+      const frame = new THREE.Mesh(hintFrameGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+      fill.rotation.x = frame.rotation.x = -Math.PI / 2; frame.position.y = 0.002;
+      m.add(fill, frame); m.position.y = 0.012;
+      c.group.add(m); c.hintFx = m;
+    }
+  }
+
+  // ---------- Cámara isométrica fija ----------
+  const ELEV = Math.atan(1 / Math.SQRT2);
+  const AZ = Math.PI / 4;
+  function fitCamera() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    const r = 40;
+    camera.position.set(Math.cos(AZ) * Math.cos(ELEV) * r, Math.sin(ELEV) * r, Math.sin(AZ) * Math.cos(ELEV) * r);
+    camera.lookAt(0, -0.4, 0);
+    camera.updateMatrixWorld();
+    // Encuadra las esquinas del mapa en el espacio de la cámara
+    let mx = 0, my = 0;
+    const inv = camera.matrixWorldInverse;
+    for (const [x, z] of [[-0.5, -0.5], [W - 0.5, -0.5], [-0.5, H - 0.5], [W - 0.5, H - 0.5]])
+      for (const y of [0.8, -1.3]) {
+        const v = new THREE.Vector3(x - (W - 1) / 2, y, z - (H - 1) / 2).applyMatrix4(inv);
+        mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y));
+      }
+    const aspect = w / h;
+    // margen extra arriba y abajo para el HUD
+    let halfH = Math.max(my * 1.55, (mx * 1.2) / aspect);
+    halfH = Math.max(halfH, 2.2);
+    camera.top = halfH; camera.bottom = -halfH;
+    camera.left = -halfH * aspect; camera.right = halfH * aspect;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', fitCamera);
+
+  // ---------- Controles ----------
+  const KEYMAP = {
+    ArrowUp: 'N', ArrowDown: 'S', ArrowLeft: 'W', ArrowRight: 'E',
+    w: 'N', s: 'S', a: 'W', d: 'E', W: 'N', S: 'S', A: 'W', D: 'E',
+  };
+  addEventListener('keydown', e => {
+    if (KEYMAP[e.key]) { e.preventDefault(); move(KEYMAP[e.key]); }
+    if (e.key === 'r' || e.key === 'R') restart();
+    if (e.key === 'h' || e.key === 'H') showHint();
+    if (e.key === 'u' || e.key === 'U') undo();
+    if (e.key === 'l' || e.key === 'L') activateSlow();
+    if (e.key === 'm' || e.key === 'M') Snd.cycle();
+  });
+  document.querySelectorAll('.dpad button').forEach(b => b.addEventListener('click', () => move(b.dataset.d)));
+  $('restart').addEventListener('click', restart);
+  $('hintBtn').addEventListener('click', showHint);
+  $('undoBtn').addEventListener('click', undo);
+  $('slowBtn').addEventListener('click', activateSlow);
+  $('soundBtn').addEventListener('click', () => Snd.cycle());
+  function restart() {
+    if (!$('modal').hidden) return;
+    if (phase === 'won') return;
+    while (falling.length) { const o = falling.pop().obj; if (o.parent) o.parent.remove(o); }
+    loadLevel(L, false);
+  }
+  const dots = $('dots');
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span>${i + 1}</span><span class="best"></span>`; b.title = lv.name; b.setAttribute('aria-label', `Nivel ${i + 1}: ${lv.name}`);
+    b.addEventListener('click', () => { if (phase !== 'won') loadLevel(i); });
+    dots.appendChild(b);
+  });
+
+  renderDots();
+
+  // Deslizar o tocar una casilla vecina
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  let down = null;
+  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', e => {
+    if (!down) return;
+    const dx = e.clientX - down.x, dy = e.clientY - down.y; down = null;
+    if (Math.hypot(dx, dy) > 28) {
+      // en pantalla: ↗ = N, ↘ = E, ↙ = S, ↖ = W
+      move(dx >= 0 ? (dy < 0 ? 'N' : 'E') : (dy < 0 ? 'W' : 'S'));
+      return;
+    }
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const meshes = [];
+    for (const c of Object.values(cells)) c.group.traverse(o => o.isMesh && meshes.push(o));
+    const hit = ray.intersectObjects(meshes, false).find(h => h.object.userData.key);
+    if (!hit) return;
+    const c = cells[hit.object.userData.key];
+    if (!c || !pos) return;
+    const ddx = c.x - pos[0], ddz = c.z - pos[1];
+    if (Math.abs(ddx) + Math.abs(ddz) !== 1) return;
+    move(ddx === 1 ? 'E' : ddx === -1 ? 'W' : ddz === 1 ? 'S' : 'N');
+  });
+
+
+  // ---------- Sonido: música zen generativa y efectos, todo sintetizado con Web Audio ----------
+  // (sin archivos: el navegador solo deja sonar audio después del primer clic o tecla)
+  const Snd = (() => {
+    let ctx = null, musicBus, musicFilter, sfxBus, noiseBuf, timer = 0, slow = false, lastDeg = 6;
+    const drones = [];
+    let mode = 0;   // 0 = música y efectos · 1 = solo efectos · 2 = silencio
+    try { mode = +(localStorage.getItem('uplands-sound') || 0) || 0; } catch (e) {}
+    const SCALE = [0, 2, 4, 7, 9];          // pentatónica mayor
+    const ROOT = 146.83;                    // Re3
+    const freq = deg => ROOT * Math.pow(2, (SCALE[((deg % 5) + 5) % 5] + 12 * Math.floor(deg / 5)) / 12);
+
+    function init() {
+      if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ctx = new AC();
+      const master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+      // Reverberación larga hecha con ruido que se apaga
+      const verb = ctx.createConvolver();
+      const len = ctx.sampleRate * 3.2, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+      verb.buffer = ir;
+      const wet = ctx.createGain(); wet.gain.value = 0.55; verb.connect(wet); wet.connect(master);
+      musicBus = ctx.createGain();
+      musicFilter = ctx.createBiquadFilter(); musicFilter.type = 'lowpass'; musicFilter.frequency.value = 18000;
+      musicBus.connect(musicFilter); musicFilter.connect(master); musicFilter.connect(verb);
+      sfxBus = ctx.createGain(); sfxBus.connect(master);
+      const sfxWet = ctx.createGain(); sfxWet.gain.value = 0.25; sfxBus.connect(sfxWet); sfxWet.connect(verb);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+      applyMode();
+      startMusic();
+    }
+    function applyMode() {
+      if (!ctx) return;
+      musicBus.gain.setTargetAtTime(mode === 0 ? 0.32 : 0, ctx.currentTime, 0.3);
+      sfxBus.gain.setTargetAtTime(mode < 2 ? 0.6 : 0, ctx.currentTime, 0.05);
+    }
+    function tone(f, o = {}) {
+      if (!ctx || mode === 2) return;
+      const t = ctx.currentTime + (o.delay || 0), a = o.attack || 0.005, d = o.dur || 0.3;
+      const osc = ctx.createOscillator(); osc.type = o.type || 'sine';
+      osc.frequency.setValueAtTime(f, t);
+      if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + a + d);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(o.gain || 0.2, t + a);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+      let node = osc;
+      if (o.lp) { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = o.lp; osc.connect(fl); node = fl; }
+      node.connect(g); g.connect(o.bus || sfxBus);
+      osc.start(t); osc.stop(t + a + d + 0.05);
+    }
+    function noise(o) {
+      if (!ctx || mode === 2) return;
+      const t = ctx.currentTime + (o.delay || 0), d = o.dur || 0.3;
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const fl = ctx.createBiquadFilter(); fl.type = o.type || 'bandpass'; fl.Q.value = o.q || 1.2;
+      fl.frequency.setValueAtTime(o.f0, t); fl.frequency.exponentialRampToValueAtTime(o.f1, t + d);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.gain || 0.1, t + d * 0.25);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      src.connect(fl); fl.connect(g); g.connect(sfxBus);
+      src.start(t); src.stop(t + d + 0.05);
+    }
+    // Campana suave: fundamental larga + armónico corto
+    function bell(f, v, delay = 0, bus, len = 1) {
+      tone(f, { dur: 2.6 * len, gain: v, attack: 0.01 * len, delay, bus });
+      tone(f * 2, { dur: 0.9 * len, gain: v * 0.22, attack: 0.005 * len, delay, bus });
+    }
+
+    // Música: un dron grave que respira y notas de campana que pasean por la escala pentatónica
+    function startMusic() {
+      [[73.42, 0.05], [110, 0.035], [146.83, 0.02]].forEach(([f, v], i) => {
+        const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f; o.detune.value = (i - 1) * 5;
+        const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 480;
+        const g = ctx.createGain(); g.gain.value = v;
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.04 + i * 0.025;
+        const lg = ctx.createGain(); lg.gain.value = v * 0.7;
+        lfo.connect(lg); lg.connect(g.gain);
+        o.connect(fl); fl.connect(g); g.connect(musicBus);
+        o.start(); lfo.start();
+        drones.push(o);
+      });
+      nextNote();
+    }
+    function nextNote() {
+      lastDeg = Math.max(4, Math.min(13, lastDeg + [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)]));
+      if (mode === 0) {
+        // En cámara lenta la música suena como una cinta a media velocidad: una octava más grave y el doble de larga
+        const k = slow ? 0.5 : 1, len = slow ? 2 : 1;
+        bell(freq(lastDeg) * k, 0.11, 0, musicBus, len);
+        if (Math.random() < 0.3) bell(freq(lastDeg - 2) * k, 0.06, 0.28 * len, musicBus, len);
+      }
+      timer = setTimeout(nextNote, (1.7 + Math.random() * 2.6) * (slow ? 1.9 : 1) * 1000);
+    }
+
+    const sfx = {
+      hop:      () => tone(330, { to: 520, dur: 0.08, gain: 0.07, type: 'triangle' }),
+      bump:     () => tone(120, { to: 70, dur: 0.12, gain: 0.22, type: 'square', lp: 380 }),
+      gem:      (n) => { const d = 8 + (n % 5); bell(freq(d), 0.16); bell(freq(d + 2), 0.08, 0.07); },
+      star:     () => [0, 1, 2, 3].forEach(i => bell(freq(10 + i), 0.13, i * 0.07)),
+      starLost: () => { const k = slow ? 0.5 : 1; tone(freq(8) * k, { to: freq(4) * k, dur: 0.6 / k, gain: 0.08, type: 'triangle' }); },
+      fall:     () => noise({ f0: 900, f1: 140, dur: 0.6, gain: 0.08 }),
+      slide:    (d) => noise({ f0: 5200, f1: 3000, dur: d, gain: 0.07, type: 'highpass', q: 0.7 }),
+      portalIn: () => { tone(220, { to: 1100, dur: 0.42, gain: 0.1 }); noise({ f0: 400, f1: 2600, dur: 0.45, gain: 0.05 }); },
+      portalOut:() => { tone(1100, { to: 320, dur: 0.12, gain: 0.07 }); tone(420, { to: 1300, dur: 0.4, gain: 0.08, delay: 0.05 }); },
+      button:   () => { tone(170, { to: 90, dur: 0.12, gain: 0.28, type: 'square', lp: 600 }); tone(1300, { dur: 0.035, gain: 0.06, type: 'square' }); },
+      barrier:  () => { tone(120, { to: 52, dur: 0.6, gain: 0.16, type: 'sawtooth', lp: 320, delay: 0.08 }); noise({ f0: 700, f1: 120, dur: 0.6, gain: 0.05, delay: 0.08 }); },
+      gate:     () => tone(280, { to: 170, dur: 0.28, gain: 0.1, type: 'triangle' }),
+      land:     () => { tone(95, { to: 48, dur: 0.3, gain: 0.3 }); noise({ f0: 500, f1: 90, dur: 0.3, gain: 0.06 }); },
+      win:      () => [0, 1, 2, 3, 4, 5, 7].forEach((d, i) => bell(freq(5 + d), 0.13, i * 0.09)),
+      lose:     () => { tone(freq(6), { to: freq(4), dur: 0.45, gain: 0.1, type: 'triangle' }); tone(freq(4), { to: freq(1), dur: 0.7, gain: 0.1, type: 'triangle', delay: 0.28 }); },
+      voidFall: () => tone(760, { to: 110, dur: 1.1, gain: 0.1 }),
+      hint:     () => [0, 2, 4].forEach((d, i) => bell(freq(12 + d), 0.07, i * 0.06)),
+      undo:     () => { noise({ f0: 220, f1: 2400, dur: 0.35, gain: 0.07 }); tone(420, { to: 260, dur: 0.3, gain: 0.08, type: 'triangle' }); },
+      slowOn:   () => tone(620, { to: 140, dur: 0.9, gain: 0.1 }),
+      slowOff:  () => tone(140, { to: 620, dur: 0.5, gain: 0.08 }),
+      coin:     () => { tone(1320, { dur: 0.07, gain: 0.07, type: 'square', lp: 3200 }); tone(1760, { dur: 0.25, gain: 0.07, type: 'square', lp: 3200, delay: 0.07 }); },
+      achieve:  () => [0, 2, 4, 7].forEach((d, i) => bell(freq(7 + d), 0.14, i * 0.11)),
+      click:    () => tone(880, { dur: 0.03, gain: 0.05, type: 'triangle' }),
+    };
+    const LABELS = ['Todo', 'Efectos', 'Silencio'];
+    function render() {
+      const b = document.getElementById('soundBtn'); if (!b) return;
+      b.querySelector('.ico').textContent = mode === 2 ? '✕' : '♪';
+      b.querySelector('.cost').textContent = LABELS[mode];
+      b.classList.toggle('muted', mode === 2);
+    }
+    function cycle() {
+      mode = (mode + 1) % 3;
+      try { localStorage.setItem('uplands-sound', String(mode)); } catch (e) {}
+      init(); applyMode(); render();
+      if (mode < 2) sfx.click();
+    }
+    // Cámara lenta: el dron baja una octava deslizándose, la música se apaga un poco (filtro) y las notas se alargan
+    function setSlow(v) {
+      slow = v;
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      drones.forEach((o, i) => o.detune.setTargetAtTime((i - 1) * 5 + (v ? -1200 : 0), t, v ? 0.5 : 0.3));
+      musicFilter.frequency.setTargetAtTime(v ? 1100 : 18000, t, v ? 0.4 : 0.3);
+    }
+    return { init, sfx, cycle, render, setSlow };
+  })();
+  addEventListener('pointerdown', () => Snd.init());
+  addEventListener('keydown', () => Snd.init());
+
+  // ---------- Bucle ----------
+  const clock = new THREE.Clock();
+  let wtime = 0;
+  function loop() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const time = clock.elapsedTime;
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const t = tweens[i];
+      t.t += dt;
+      const k = Math.min(1, t.t / t.dur);
+      t.update(k);
+      if (k >= 1) { tweens.splice(i, 1); t.done && t.done(); }
+    }
+    for (let i = falling.length - 1; i >= 0; i--) {
+      const f = falling[i];
+      f.t += dt; f.vy -= 14 * dt;
+      f.obj.position.y += f.vy * dt;
+      f.obj.rotation.z += f.spin * dt; f.obj.rotation.x += f.spin * 0.6 * dt;
+      const op = Math.max(0, 1 - Math.max(0, f.t - 0.35) / 0.8);
+      f.obj.traverse(o => { if (o.material) o.material.opacity = Math.min(o.material.opacity, op); });
+      if (f.t > 1.4) { f.obj.parent && f.obj.parent.remove(f.obj); falling.splice(i, 1); }
+    }
+    // Cámara lenta: el mundo (estrellas, flotación, gemas, portales, nubes) usa un reloj a mitad de velocidad;
+    // el jugador, los saltos y lo que él activa (botones, vallas, caídas) siguen a velocidad normal
+    if (slowLeft > 0 && phase !== 'modal') {
+      slowLeft -= dt;
+      $('slowBtn').querySelector('.cost').textContent = `${Math.ceil(Math.max(0, slowLeft))} s`;
+      if (slowLeft <= 0) endSlow();
+    }
+    const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
+    wtime += wdt;
+    tickStars(wdt, time);
+    if (pendingSlow && phase === 'idle') { pendingSlow = false; openSlowTutorial(); }
+    // Flotación: ondas desde la casilla de aterrizaje que se calman y pasan a flotar cada bloque por su cuenta
+    if (rippleT >= 0) {
+      const rt = time - rippleT;
+      const w = Math.min(1, Math.max(0, (rt - 0.8) / 2.5));
+      for (const c of Object.values(cells)) {
+        const r = Math.hypot(c.x - rippleO[0], c.z - rippleO[1]);
+        const tt = rt - r / 3.2;
+        let y = 0;
+        if (tt > 0 && tt < 3) y -= 0.05 * Math.exp(-2.2 * tt) * Math.sin(tt * Math.PI * 2 * 1.3) / (1 + r * 0.35);
+        y += w * c.bobAmp * Math.sin(wtime * c.bobSpeed + c.bobPhase);
+        c.group.position.y = y;
+      }
+    }
+    for (const c of Object.values(cells)) {
+      for (const g of c.gems) { g.rotation.y += wdt * 1.6; g.position.y = 0.34 + Math.sin(wtime * 2.4 + g.userData.phase) * 0.04; }
+      if (c.hintFx) { const k = 0.5 + Math.sin(time * 6) * 0.5; c.hintFx.children[0].material.opacity = 0.55 + k * 0.35; c.hintFx.children[1].material.opacity = 0.9; c.hintFx.position.y = 0.012 + k * 0.01; }
+      if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
+    }
+    for (const cl of clouds) { cl.position.x += cl.userData.v * wdt; if (cl.position.x > 14) cl.position.x = -14; }
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  Snd.render();
+  loadLevel(0);
+  loop();
+})();
+</script>
+</body>
+</html>
