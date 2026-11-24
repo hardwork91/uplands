@@ -109,6 +109,7 @@
   .coin { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe680, #e0a800 70%); box-shadow: inset 0 0 0 2px #b88400; flex: none; }
   #coins.pop { animation: pop 0.3s ease-out; }
   #toast {
+    z-index: 30;
     position: fixed; left: 50%; transform: translateX(-50%);
     top: calc(118px + env(safe-area-inset-top, 0px));
     display: flex; align-items: center; gap: 10px;
@@ -265,6 +266,33 @@
   .res-actions button:disabled { opacity: 0.4; cursor: default; }
   .set-row { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; font-size: 15px; }
   .sheet .note { margin: 0; font-size: 12px; color: var(--muted); }
+  /* Ajustes */
+  .set-row label, .set-row > span { font-size: 15px; }
+  .set-row input[type=range] { width: 150px; accent-color: var(--ink); }
+  .switch { position: relative; width: 50px; height: 28px; padding: 0; border-radius: 999px; background: rgba(31,51,70,0.2); border: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s; }
+  .switch[aria-checked="true"] { background: var(--win); }
+  .switch[aria-checked="true"]::after { transform: translateX(22px); }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: 8px 14px; font-size: 13px; background: transparent; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .danger { color: var(--warn); border-color: rgba(192,73,43,0.4); background: #fff; }
+  .danger.solid { background: var(--warn); color: #fff; border-color: var(--warn); }
+  .confirm { display: flex; flex-direction: column; gap: 8px; width: 100%; font-size: 13px; color: var(--warn); }
+  .confirm .row2 { display: flex; gap: 8px; } .confirm .row2 button { flex: 1; }
+  .sheet hr { width: 100%; border: none; border-top: 1px solid var(--line); margin: 2px 0; }
+  /* Logros */
+  #achievements { background: rgba(31, 51, 70, 0.35); }
+  #achievements .sheet { width: min(460px, 100%); max-height: calc(100% - 40px); overflow: hidden; }
+  .ach-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; width: 100%; overflow-y: auto; padding: 2px; }
+  @media (max-width: 420px) { .ach-list { grid-template-columns: 1fr; } }
+  .ach { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: #fbfcfd; min-width: 0; }
+  .ach .aico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; background: #ffe58a; color: #8a6a00; }
+  .ach b { display: block; font-size: 14px; } .ach small { display: block; font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+  .ach.no { background: repeating-linear-gradient(135deg, #f1f3f5 0 8px, #eceff2 8px 16px); }
+  .ach.no .aico { background: #dfe4e8; color: #9aa6b0; }
+  .ach.no b { color: #9aa6b0; letter-spacing: 0.2em; }
+  #achCount { font-family: var(--font-display); font-size: 13px; color: var(--muted); margin-top: -8px; }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
@@ -279,13 +307,13 @@
 <div class="top">
   <div class="right">
   <div class="tools" aria-label="Acciones">
-    <button id="pauseBtn" class="tool" title="Pausa (Esc)"><span class="ico">⏸</span><span class="lbl">Pausa</span><span class="cost">Esc</span></button>
-    <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl">Pista</span><span class="cost"></span></button>
-    <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl">Deshacer</span><span class="cost"></span></button>
-    <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl">Lento</span><span class="cost"></span></button>
+    <button id="pauseBtn" class="tool" title="Pausa (Esc)"><span class="ico">⏸</span><span class="lbl" data-i18n="pause">Pausa</span><span class="cost">Esc</span></button>
+    <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl" data-i18n="hint">Pista</span><span class="cost"></span></button>
+    <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl" data-i18n="undo">Deshacer</span><span class="cost"></span></button>
+    <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl" data-i18n="slow">Lento</span><span class="cost"></span></button>
   </div>
   <div class="panel counter" aria-live="polite">
-    <small>FALTAN</small>
+    <small data-i18n="left">FALTAN</small>
     <div id="count">0</div>
     <div id="stars" aria-label="Estrellas"></div>
     <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
@@ -299,17 +327,17 @@
 <div id="home" class="screen" hidden>
   <div class="stats"><span class="stat"><span class="coin"></span><span id="homeCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="homeStars">0</span></span></div>
   <h1 class="logo">UPLANDS</h1>
-  <button id="playBtn" class="primary big">Jugar</button>
+  <button id="playBtn" class="primary big" data-i18n="play">Jugar</button>
   <div class="home-row">
-    <button id="settingsBtn" class="tool"><span class="ico">⚙</span><span class="lbl">Ajustes</span></button>
-    <button id="achBtn" class="tool"><span class="ico">✪</span><span class="lbl">Logros</span></button>
+    <button id="settingsBtn" class="tool"><span class="ico">⚙</span><span class="lbl" data-i18n="settings">Ajustes</span></button>
+    <button id="achBtn" class="tool"><span class="ico">✪</span><span class="lbl" data-i18n="achievements">Logros</span></button>
   </div>
 </div>
 
 <div id="map" class="screen" hidden>
   <div class="worlds" id="worlds"></div>
   <div class="map-top">
-    <button id="mapBack">‹ Inicio</button>
+    <button id="mapBack" data-i18n="home">‹ Inicio</button>
     <div class="stats"><span class="stat"><span class="coin"></span><span id="mapCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="mapStars">0</span></span></div>
   </div>
   <button class="warrow prev" id="wPrev" aria-label="Mundo anterior">‹</button>
@@ -319,23 +347,23 @@
 
 <div id="pause" class="screen overlay" hidden>
   <div class="menu">
-    <h2>Pausa</h2>
-    <button id="resumeBtn" class="primary">Continuar</button>
-    <button id="pRestart">↺ Reiniciar</button>
-    <button id="pSettings">⚙ Ajustes</button>
-    <button id="pExit">Salir al mapa</button>
+    <h2 data-i18n="pause">Pausa</h2>
+    <button id="resumeBtn" class="primary" data-i18n="resume">Continuar</button>
+    <button id="pRestart" data-i18n="restart">↺ Reiniciar</button>
+    <button id="pSettings" data-i18n="settingsBtn">⚙ Ajustes</button>
+    <button id="pExit" data-i18n="exitMap">Salir al mapa</button>
   </div>
 </div>
 
 <div id="result" class="screen overlay" hidden>
   <div class="sheet" role="dialog" aria-labelledby="resTitle">
     <h2 id="resTitle">Nivel 1</h2>
-    <p class="sub">¡Superado!</p>
+    <p class="sub" data-i18n="cleared">¡Superado!</p>
     <div class="res-stars" id="resStars"><span>★</span><span>★</span><span>★</span></div>
     <div class="res-coins" id="resCoins"></div>
     <div class="res-actions">
-      <button id="resLevels">Niveles</button>
-      <button id="resRetry">↺ Repetir</button>
+      <button id="resLevels" data-i18n="levels">Niveles</button>
+      <button id="resRetry" data-i18n="retry">↺ Repetir</button>
       <button id="resNext" class="primary">Siguiente</button>
     </div>
   </div>
@@ -343,10 +371,27 @@
 
 <div id="settings" class="screen overlay" hidden>
   <div class="sheet" role="dialog" aria-labelledby="setTitle">
-    <h2 id="setTitle">Ajustes</h2>
-    <div class="set-row"><span>Sonido</span><button id="soundBtn" class="tool" title="Sonido (M)"><span class="ico">♪</span><span class="lbl">Sonido</span><span class="cost">Todo</span></button></div>
-    <p class="note">Volumen, vibración, idioma y borrar progreso llegan en la siguiente fase.</p>
-    <button id="setClose" class="primary">Listo</button>
+    <h2 id="setTitle" data-i18n="settings">Ajustes</h2>
+    <div class="set-row"><label for="volMusic" data-i18n="music">Música</label><input type="range" id="volMusic" min="0" max="100" step="5"></div>
+    <div class="set-row"><label for="volSfx" data-i18n="sfx">Efectos</label><input type="range" id="volSfx" min="0" max="100" step="5"></div>
+    <div class="set-row"><span data-i18n="vibration">Vibración</span><button id="vibSwitch" class="switch" role="switch" aria-checked="true" aria-label="Vibración"></button></div>
+    <div class="set-row"><span data-i18n="language">Idioma</span><div class="seg" id="langSeg"><button data-lang="es" aria-pressed="false">Español</button><button data-lang="en" aria-pressed="false">English</button></div></div>
+    <hr>
+    <button id="resetBtn" class="danger" data-i18n="reset">Borrar progreso</button>
+    <div class="confirm" id="resetConfirm" hidden>
+      <span data-i18n="resetConfirm">¿Seguro? Se perderán estrellas, monedas y logros.</span>
+      <div class="row2"><button id="resetNo" data-i18n="cancel">Cancelar</button><button id="resetYes" class="danger solid" data-i18n="resetYes">Borrar</button></div>
+    </div>
+    <button id="setClose" class="primary" data-i18n="done">Listo</button>
+  </div>
+</div>
+
+<div id="achievements" class="screen overlay" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="achTitle">
+    <h2 id="achTitle" data-i18n="achievements">Logros</h2>
+    <div id="achCount"></div>
+    <div class="ach-list" id="achList"></div>
+    <button id="achClose" class="primary" data-i18n="close">Cerrar</button>
   </div>
 </div>
 
@@ -816,7 +861,7 @@
   }
   function hideBanner() { banner.hidden = true; document.body.classList.remove('locked'); }
   // Botón clicable dentro del cartel (el cartel en sí no captura clics)
-  const RETRY = '<button class="retry" type="button">↺ Reintentar</button>';
+  const retryBtn = () => `<button class="retry" type="button">${tr('tryAgain')}</button>`;
   banner.addEventListener('click', e => { if (e.target.closest('.retry')) restart(); if (e.target.closest('.undo')) undo(); });
   function setCount(n, pop) {
     const el = $('count'); el.textContent = n;
@@ -934,6 +979,7 @@
         const sc = cells[key(pos[0], pos[1])];
         sc.group.attach(player); player.position.set(0, 0, 0);
         rippleT = clock.elapsedTime; rippleO = pos.slice();
+        levelReadyT = clock.elapsedTime;
         Snd.sfx.land();
         squash();
         phase = 'idle';
@@ -969,8 +1015,10 @@
   // Movimientos que no terminan en caída (para detectar "sin salida")
   function canMove(d) { const r = resolveMove(k => cells[k], pos[0], pos[1], d); return !!r && !r.fall; }
 
+  let bumpStreak = 0, levelReadyT = 0;
   function bump(d) {
     Snd.sfx.bump();
+    if (++bumpStreak >= 10) unlockAchievement('stubborn');
     const [dx, dz] = DIRS[d];
     const base = player.position.clone();
     player.rotation.y = YAW[d];
@@ -987,7 +1035,10 @@
     const res = resolveMove(k => cells[k], pos[0], pos[1], d);
     if (!res) { bump(d); return; }
     pushHistory();
+    bumpStreak = 0;
+    if (!timersOn && levelReadyT && clock.elapsedTime - levelReadyT >= 60) unlockAchievement('patience');
     timersOn = true;
+    if (res.ices.length) { prog.stats.ice = (prog.stats.ice || 0) + res.ices.length; saveProg(); if (prog.stats.ice >= 5) unlockAchievement('skater'); }
     hideBanner();
     clearHints();
     const cur = cells[key(pos[0], pos[1])];
@@ -1042,8 +1093,9 @@
     phase = 'lost'; queued = null;
     dropObject(player);
     Snd.sfx.voidFall();
-    showBanner('Te caíste al vacío' + lostButtons(), 'stuck');
-    unlockAchievement('edge', 'Al borde del mundo', 'Resbalaste por el hielo hasta el vacío.');
+    showBanner(tr('fell') + lostButtons(), 'stuck');
+    vib(80);
+    unlockAchievement('edge');
   }
 
   function collect(c) {
@@ -1051,7 +1103,7 @@
     c.coins--; remaining--;
     setCount(remaining, true);
     const gem = c.gems.pop();
-    if (gem.userData.isStar && c.star) Snd.sfx.star(); else Snd.sfx.gem(remaining);
+    if (gem.userData.isStar && c.star) { Snd.sfx.star(); if (c.star.left < 1) unlockAchievement('close'); } else Snd.sfx.gem(remaining);
     if (gem.userData.isStar && c.star) {
       starStatus[c.star.idx] = 'got';
       c.group.remove(c.star.holder); c.star = null;
@@ -1108,6 +1160,8 @@
       const fx = other.portalFx;
       tween(0.35, k => fx.scale.setScalar(1 - k), () => other.group.remove(fx));
       other.group.attach(player); player.position.set(0, -0.3, 0);
+      prog.stats.portals = (prog.stats.portals || 0) + 1; saveProg();
+      if (prog.stats.portals >= 10) unlockAchievement('traveler');
       Snd.sfx.portalOut();
       pos = [other.x, other.z];
       const rot1 = player.rotation.y;
@@ -1137,7 +1191,9 @@
     if (!Object.keys(DIRS).some(canMove)) {
       phase = 'lost'; queued = null;
       Snd.sfx.lose();
-      showBanner('Sin salida<small>No te quedan movimientos.</small>' + lostButtons(), 'stuck');
+      showBanner(`${tr('stuckT')}<small>${tr('stuckS')}</small>` + lostButtons(), 'stuck');
+      vib([40, 60, 40]);
+      unlockAchievement('stuck');
     }
   }
 
@@ -1146,6 +1202,9 @@
     Snd.sfx.win();
     const got = starStatus.filter(s => s === 'got').length;
     saveBest(L, got);
+    if (got === 3) unlockAchievement('lightning');
+    if (starStatus.length === 3 && starStatus.every(s => s === 'lost')) unlockAchievement('slowpoke');
+    if (WORLDS[0].levels.every(lv => best[lv] === 3)) unlockAchievement('perfect');
     // Monedas: 5 por pasar el nivel la primera vez + 10 por cada estrella que mejore tu récord anterior
     const prev = prog.paid[L];
     const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
@@ -1206,15 +1265,15 @@
 
   // ---------- Economía, logros y tutorial de la pista ----------
   const COIN_CLEAR = 5, COIN_STAR = 10, COIN_ACH = 25, HINT_COST = 15, UNDO_COST = 40, SLOW_COST = 20, SLOW_DUR = 15;
-  let prog = { coins: 0, paid: {}, hintUnlocked: false, undoUnlocked: false, slowUnlocked: false, ach: {}, free: { hint: true, undo: true, slow: true } };
+  let prog = { coins: 0, paid: {}, hintUnlocked: false, undoUnlocked: false, slowUnlocked: false, ach: {}, free: { hint: true, undo: true, slow: true }, stats: {} };
   try { prog = Object.assign(prog, JSON.parse(localStorage.getItem('uplands-progress') || '{}')); } catch (e) {}
   const saveProg = () => { try { localStorage.setItem('uplands-progress', JSON.stringify(prog)); } catch (e) {} };
   function renderCoins(pop) {
     const el = $('coins'); el.textContent = prog.coins;
     if (pop) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
-    const price = (k, c) => (prog.free[k] ? 'Gratis' : c);
+    const price = (k, c) => (prog.free[k] ? tr('free') : c);
     $('hintBtn').hidden = !prog.hintUnlocked;
-    const setCost = (id, v) => { $(id).querySelector('.cost').innerHTML = v === 'Gratis' ? 'Gratis' : `<span class="coin"></span>${v}`; };
+    const setCost = (id, v) => { $(id).querySelector('.cost').innerHTML = typeof v === 'string' ? v : `<span class="coin"></span>${v}`; };
     setCost('hintBtn', price('hint', HINT_COST));
     $('undoBtn').hidden = !prog.undoUnlocked;
     setCost('undoBtn', price('undo', UNDO_COST));
@@ -1224,7 +1283,7 @@
   // Cobra un potenciador: el primer uso de cada uno es gratis
   function payFor(kind, cost, label) {
     if (prog.free[kind]) { prog.free[kind] = false; saveProg(); renderCoins(); return true; }
-    if (prog.coins < cost) { toast('Te faltan monedas', `${label} cuesta ${cost}. Tienes ${prog.coins}.`); return false; }
+    if (prog.coins < cost) { toast(tr('needCoins'), tr('costIs', { what: label, c: cost, have: prog.coins })); return false; }
     addCoins(-cost);
     return true;
   }
@@ -1237,10 +1296,13 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
   }
   // Logros ocultos: solo se anuncian al conseguirlos
-  function unlockAchievement(id, name, desc) {
+  function unlockAchievement(id) {
     if (prog.ach[id]) return;
+    const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
+    const [name, desc] = achText(a);
     prog.ach[id] = true; addCoins(COIN_ACH); Snd.sfx.achieve();
-    toast(`Logro: ${name}`, `${desc} +${COIN_ACH} monedas`);
+    toast(tr('achToast', { name }), tr('achCoins', { desc, n: COIN_ACH }));
+    vib([30, 50, 30]);
   }
   // Modal genérico: pausa el juego hasta que se elige una acción
   function openModal(title, body, actions) {
@@ -1264,11 +1326,9 @@
   function maybeHintTutorial() {
     if (prog.hintUnlocked || L < 2) return false;
     if (Object.keys(DIRS).filter(canMove).length < 3) return false;
-    openModal('✦ Pistas',
-      '<p>Has llegado a un cruce. Si no sabes por dónde seguir, pide una pista: se iluminan las casillas que todavía llevan a la solución.</p>' +
-      costLine(`La primera es gratis. Después cuesta ${HINT_COST} monedas. Tienes ${prog.coins}.`) +
-      '<p>Las monedas se ganan pasando niveles por primera vez, consiguiendo estrellas nuevas y con algún que otro secreto.</p>',
-      [{ label: 'Entendido', primary: true, onClick: () => { unlock('hintUnlocked'); checkStuck(); } }]);
+    openModal(tr('hintTitle'),
+      `<p>${tr('hintP1')}</p>` + costLine(tr('hintCost', { c: HINT_COST, have: prog.coins })) + `<p>${tr('hintP2')}</p>`,
+      [{ label: tr('ok'), primary: true, onClick: () => { unlock('hintUnlocked'); checkStuck(); } }]);
     return true;
   }
 
@@ -1290,21 +1350,19 @@
     const budget = { n: 200000 };
     const ok = solvable(snapshot(), key(pos[0], pos[1]), new Map(), budget);
     if (ok || budget.n < 0) return false;   // si no se pudo comprobar del todo, no molestamos
-    openModal('↶ Deshacer',
-      '<p>Con ese movimiento ya no puedes recoger todas las gemas.</p>' +
-      '<p>Puedes deshacerlo y volver un paso atrás: las casillas caídas y las gemas vuelven a su sitio.</p>' +
-      costLine(`La primera vez es gratis. Después cuesta ${UNDO_COST} monedas.`),
-      [{ label: 'Seguir así', onClick: () => { unlock('undoUnlocked'); checkStuck(); } },
-       { label: '↶ Deshacer gratis', primary: true, onClick: () => { unlock('undoUnlocked'); undo(); } }]);
+    openModal(tr('undoTitle'),
+      `<p>${tr('undoP1')}</p><p>${tr('undoP2')}</p>` + costLine(tr('firstFree', { c: UNDO_COST })),
+      [{ label: tr('keepGoing'), onClick: () => { unlock('undoUnlocked'); checkStuck(); } },
+       { label: tr('undoFree'), primary: true, onClick: () => { unlock('undoUnlocked'); undo(); } }]);
     return true;
   }
   function lostButtons() {
-    return RETRY + (prog.undoUnlocked && history.length ? `<button class="undo" type="button">↶ Deshacer · ${prog.free.undo ? 'Gratis' : UNDO_COST}</button>` : '');
+    return retryBtn() + (prog.undoUnlocked && history.length ? `<button class="undo" type="button">${tr('undoPrice', { p: prog.free.undo ? tr('free') : UNDO_COST })}</button>` : '');
   }
   function undo() {
     if (!prog.undoUnlocked || !history.length) return;
     if (phase !== 'idle' && phase !== 'lost') return;
-    if (!payFor('undo', UNDO_COST, 'Deshacer')) return;
+    if (!payFor('undo', UNDO_COST, tr('whatUndo'))) return;
     restoreState(history.pop());
   }
   // Reconstruye el tablero tal como estaba antes del último movimiento
@@ -1338,18 +1396,16 @@
   let slowLeft = 0, pendingSlow = false;
   function openSlowTutorial() {
     const anyLeft = starStatus.includes('pending');
-    openModal('⏳ Cámara lenta',
-      '<p>Se te escapó una estrella.</p>' +
-      `<p>La cámara lenta hace que el mundo vaya a la mitad de velocidad durante ${SLOW_DUR} segundos, así que las estrellas tardan el doble en apagarse. Tú te sigues moviendo igual de rápido.</p>` +
-      costLine(`La primera vez es gratis. Después cuesta ${SLOW_COST} monedas.`),
+    openModal(tr('slowTitle'),
+      `<p>${tr('slowP1')}</p><p>${tr('slowP2', { s: SLOW_DUR })}</p>` + costLine(tr('firstFree', { c: SLOW_COST })),
       anyLeft
-        ? [{ label: 'Ahora no', onClick: () => unlock('slowUnlocked') },
-           { label: '⏳ Probar gratis', primary: true, onClick: () => { unlock('slowUnlocked'); activateSlow(); } }]
-        : [{ label: 'Entendido', primary: true, onClick: () => unlock('slowUnlocked') }]);
+        ? [{ label: tr('notNow'), onClick: () => unlock('slowUnlocked') },
+           { label: tr('tryFree'), primary: true, onClick: () => { unlock('slowUnlocked'); activateSlow(); } }]
+        : [{ label: tr('ok'), primary: true, onClick: () => unlock('slowUnlocked') }]);
   }
   function activateSlow() {
     if (slowLeft > 0 || (phase !== 'idle' && phase !== 'moving')) return;
-    if (!payFor('slow', SLOW_COST, 'La cámara lenta')) return;
+    if (!payFor('slow', SLOW_COST, tr('whatSlow'))) return;
     slowLeft = SLOW_DUR;
     document.body.classList.add('slow');
     Snd.sfx.slowOn(); Snd.setSlow(true);
@@ -1362,7 +1418,6 @@
     $('slowBtn').classList.remove('active');
     renderCoins();
   }
-  renderCoins();
 
   // ---------- Pista: qué movimientos siguen llevando a una solución ----------
   // Simula las mismas reglas del juego sobre una copia del estado actual.
@@ -1408,7 +1463,7 @@
   }
   function showHint() {
     if (phase !== 'idle' || !pos || !prog.hintUnlocked) return;
-    if (!payFor('hint', HINT_COST, 'Una pista')) return;
+    if (!payFor('hint', HINT_COST, tr('whatHint'))) return;
     clearHints();
     const s = snapshot(), p = key(pos[0], pos[1]), memo = new Map(), budget = { n: 400000 };
     const good = [];
@@ -1419,7 +1474,7 @@
     if (!good.length) {
       phase = 'lost'; queued = null;
       Snd.sfx.lose();
-      showBanner('Ningún movimiento lleva a la solución' + lostButtons(), 'stuck');
+      showBanner(tr('noSol') + lostButtons(), 'stuck');
       return;
     }
     hideBanner();
@@ -1476,12 +1531,11 @@
     if (e.key === 'h' || e.key === 'H') showHint();
     if (e.key === 'u' || e.key === 'U') undo();
     if (e.key === 'l' || e.key === 'L') activateSlow();
-    if (e.key === 'm' || e.key === 'M') Snd.cycle();
+    if (e.key === 'm' || e.key === 'M') Snd.toggleMute();
   });
   $('hintBtn').addEventListener('click', showHint);
   $('undoBtn').addEventListener('click', undo);
   $('slowBtn').addEventListener('click', activateSlow);
-  $('soundBtn').addEventListener('click', () => Snd.cycle());
   function restart() {
     if (!$('modal').hidden) return;
     if (phase === 'won' || document.body.dataset.screen !== 'game') return;
@@ -1517,6 +1571,124 @@
   });
 
 
+
+
+  // ---------- Idiomas, ajustes y logros ----------
+  const I18N = {
+    es: {
+      left: 'FALTAN', pause: 'Pausa', hint: 'Pista', undo: 'Deshacer', slow: 'Lento', play: 'Jugar', settings: 'Ajustes', achievements: 'Logros',
+      home: '‹ Inicio', resume: 'Continuar', restart: '↺ Reiniciar', settingsBtn: '⚙ Ajustes', exitMap: 'Salir al mapa', levels: 'Niveles',
+      retry: '↺ Repetir', next: 'Siguiente', soonBtn: 'Pronto', cleared: '¡Superado!', level: 'Nivel {n}', soon: 'pronto',
+      unlockWorld: 'Termina {prev} para desbloquear {w}', cielo: 'Cielo', dunas: 'Dunas', escarcha: 'Escarcha',
+      coinsPlus: '+{n} monedas', noCoins: 'Sin monedas nuevas: mejora tus estrellas', free: 'Gratis',
+      needCoins: 'Te faltan monedas', costIs: '{what} cuesta {c}. Tienes {have}.', whatHint: 'Una pista', whatUndo: 'Deshacer', whatSlow: 'La cámara lenta',
+      achToast: 'Logro: {name}', achCoins: '{desc} +{n} monedas', tryAgain: '↺ Reintentar', undoPrice: '↶ Deshacer · {p}',
+      fell: 'Te caíste al vacío', stuckT: 'Sin salida', stuckS: 'No te quedan movimientos.', noSol: 'Ningún movimiento lleva a la solución',
+      hintTitle: '✦ Pistas', hintP1: 'Has llegado a un cruce. Si no sabes por dónde seguir, pide una pista: se iluminan las casillas que todavía llevan a la solución.',
+      hintCost: 'La primera es gratis. Después cuesta {c} monedas. Tienes {have}.',
+      hintP2: 'Las monedas se ganan pasando niveles por primera vez, consiguiendo estrellas nuevas y con algún que otro secreto.', ok: 'Entendido',
+      undoTitle: '↶ Deshacer', undoP1: 'Con ese movimiento ya no puedes recoger todas las gemas.',
+      undoP2: 'Puedes deshacerlo y volver un paso atrás: las casillas caídas y las gemas vuelven a su sitio.',
+      firstFree: 'La primera vez es gratis. Después cuesta {c} monedas.', keepGoing: 'Seguir así', undoFree: '↶ Deshacer gratis',
+      slowTitle: '⏳ Cámara lenta', slowP1: 'Se te escapó una estrella.',
+      slowP2: 'La cámara lenta hace que el mundo vaya a la mitad de velocidad durante {s} segundos, así que las estrellas tardan el doble en apagarse. Tú te sigues moviendo igual de rápido.',
+      notNow: 'Ahora no', tryFree: '⏳ Probar gratis',
+      music: 'Música', sfx: 'Efectos', vibration: 'Vibración', language: 'Idioma', reset: 'Borrar progreso',
+      resetConfirm: '¿Seguro? Se perderán estrellas, monedas y logros.', cancel: 'Cancelar', resetYes: 'Borrar', done: 'Listo', close: 'Cerrar',
+      resetDone: 'Progreso borrado', resetDoneS: 'Empiezas de cero.', achCount: '{n} de {t} descubiertos',
+    },
+    en: {
+      left: 'LEFT', pause: 'Pause', hint: 'Hint', undo: 'Undo', slow: 'Slow', play: 'Play', settings: 'Settings', achievements: 'Achievements',
+      home: '‹ Home', resume: 'Resume', restart: '↺ Restart', settingsBtn: '⚙ Settings', exitMap: 'Back to map', levels: 'Levels',
+      retry: '↺ Retry', next: 'Next', soonBtn: 'Soon', cleared: 'Cleared!', level: 'Level {n}', soon: 'soon',
+      unlockWorld: 'Finish {prev} to unlock {w}', cielo: 'Sky', dunas: 'Dunes', escarcha: 'Frost',
+      coinsPlus: '+{n} coins', noCoins: 'No new coins: beat your star record', free: 'Free',
+      needCoins: 'Not enough coins', costIs: '{what} costs {c}. You have {have}.', whatHint: 'A hint', whatUndo: 'Undo', whatSlow: 'Slow motion',
+      achToast: 'Achievement: {name}', achCoins: '{desc} +{n} coins', tryAgain: '↺ Try again', undoPrice: '↶ Undo · {p}',
+      fell: 'You fell into the void', stuckT: 'Dead end', stuckS: 'You have no moves left.', noSol: 'No move leads to a solution',
+      hintTitle: '✦ Hints', hintP1: "You've reached a crossing. If you're not sure where to go, ask for a hint: the tiles that still lead to a solution light up.",
+      hintCost: 'The first one is free. After that it costs {c} coins. You have {have}.',
+      hintP2: 'You earn coins by clearing levels for the first time, getting new stars and finding the odd secret.', ok: 'Got it',
+      undoTitle: '↶ Undo', undoP1: 'After that move you can no longer collect every gem.',
+      undoP2: 'You can undo it and go back one step: fallen tiles and gems return to their place.',
+      firstFree: 'The first time is free. After that it costs {c} coins.', keepGoing: 'Keep going', undoFree: '↶ Undo for free',
+      slowTitle: '⏳ Slow motion', slowP1: 'A star slipped away.',
+      slowP2: 'Slow motion makes the world run at half speed for {s} seconds, so stars take twice as long to fade. You still move at full speed.',
+      notNow: 'Not now', tryFree: '⏳ Try it free',
+      music: 'Music', sfx: 'Sound effects', vibration: 'Vibration', language: 'Language', reset: 'Reset progress',
+      resetConfirm: 'Are you sure? Stars, coins and achievements will be lost.', cancel: 'Cancel', resetYes: 'Erase', done: 'Done', close: 'Close',
+      resetDone: 'Progress erased', resetDoneS: 'Starting from scratch.', achCount: '{n} of {t} discovered',
+    },
+  };
+  let settings = { music: 0.7, sfx: 0.7, vib: true, lang: (navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en' };
+  try { settings = Object.assign(settings, JSON.parse(localStorage.getItem('uplands-settings') || '{}')); } catch (e) {}
+  const saveSettings = () => { try { localStorage.setItem('uplands-settings', JSON.stringify(settings)); } catch (e) {} };
+  function tr(k, vars = {}) {
+    const str = (I18N[settings.lang] || I18N.es)[k] ?? I18N.es[k] ?? k;
+    return str.replace(/\{(\w+)\}/g, (_, v) => vars[v] ?? '');
+  }
+  function applyI18n() {
+    document.documentElement.lang = settings.lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+    document.querySelectorAll('#langSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === settings.lang)));
+  }
+  // Vibración corta en los momentos importantes (solo donde el navegador la permite)
+  function vib(pattern) { if (settings.vib && navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
+
+  // Logros ocultos: se ven en su pantalla como "???" hasta descubrirlos
+  const ACHIEVEMENTS = [
+    { id: 'edge', icon: '⇣', es: ['Al borde del mundo', 'Resbalaste por el hielo hasta el vacío.'], en: ['Edge of the world', 'You slid off the ice into the void.'] },
+    { id: 'stuck', icon: '⊘', es: ['Callejón sin salida', 'Te quedaste sin movimientos por primera vez.'], en: ['Dead end', 'You ran out of moves for the first time.'] },
+    { id: 'lightning', icon: '★', es: ['Rayo', 'Conseguiste las 3 estrellas de un nivel.'], en: ['Lightning', 'You got all 3 stars in a level.'] },
+    { id: 'stubborn', icon: '⨯', es: ['Cabezota', 'Chocaste 10 veces seguidas contra un obstáculo.'], en: ['Stubborn', 'You bumped into an obstacle 10 times in a row.'] },
+    { id: 'patience', icon: '◷', es: ['Paciencia', 'Esperaste un minuto antes de dar el primer paso.'], en: ['Patience', 'You waited a minute before taking your first step.'] },
+    { id: 'slowpoke', icon: '☾', es: ['Sin prisa', 'Ganaste un nivel dejando que se apagaran sus 3 estrellas.'], en: ['No rush', 'You beat a level after letting all 3 stars fade.'] },
+    { id: 'close', icon: '!', es: ['Por los pelos', 'Cogiste una estrella en su último segundo.'], en: ['Close call', 'You grabbed a star in its last second.'] },
+    { id: 'skater', icon: '❄', es: ['Patinador', 'Cruzaste 5 bloques de hielo.'], en: ['Skater', 'You crossed 5 ice blocks.'] },
+    { id: 'traveler', icon: '◎', es: ['Viajero', 'Usaste 10 portales.'], en: ['Traveler', 'You used 10 portals.'] },
+    { id: 'perfect', icon: '♛', es: ['Perfeccionista', 'Conseguiste 3 estrellas en todos los niveles de Cielo.'], en: ['Perfectionist', 'You got 3 stars in every Sky level.'] },
+  ];
+  const achText = a => a[settings.lang] || a.es;
+  function renderAchievements() {
+    const got = ACHIEVEMENTS.filter(a => prog.ach[a.id]).length;
+    $('achCount').textContent = tr('achCount', { n: got, t: ACHIEVEMENTS.length });
+    $('achList').innerHTML = ACHIEVEMENTS.map(a => {
+      if (!prog.ach[a.id]) return '<div class="ach no"><span class="aico">?</span><div><b>???</b><small>&nbsp;</small></div></div>';
+      const [name, desc] = achText(a);
+      return `<div class="ach"><span class="aico">${a.icon}</span><div><b>${name}</b><small>${desc}</small></div></div>`;
+    }).join('');
+  }
+  $('achBtn').addEventListener('click', () => { renderAchievements(); $('achievements').hidden = false; $('achClose').focus(); });
+  $('achClose').addEventListener('click', () => { $('achievements').hidden = true; });
+
+  // Ajustes: volumen, vibración, idioma y borrar progreso
+  function syncSettingsUI() {
+    $('volMusic').value = Math.round(settings.music * 100);
+    $('volSfx').value = Math.round(settings.sfx * 100);
+    $('vibSwitch').setAttribute('aria-checked', String(settings.vib));
+    $('resetConfirm').hidden = true; $('resetBtn').hidden = false;
+    applyI18n();
+  }
+  $('volMusic').addEventListener('input', e => { settings.music = e.target.value / 100; saveSettings(); Snd.init(); Snd.setVolumes(settings.music, settings.sfx); });
+  $('volSfx').addEventListener('input', e => { settings.sfx = e.target.value / 100; saveSettings(); Snd.init(); Snd.setVolumes(settings.music, settings.sfx); });
+  $('volSfx').addEventListener('change', () => Snd.sfx.gem(3));
+  $('vibSwitch').addEventListener('click', () => { settings.vib = !settings.vib; saveSettings(); syncSettingsUI(); vib(30); });
+  $('langSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    settings.lang = b.dataset.lang; saveSettings(); applyI18n(); renderCoins();
+    if (document.body.dataset.screen === 'map') renderMap();
+  });
+  $('resetBtn').addEventListener('click', () => { $('resetBtn').hidden = true; $('resetConfirm').hidden = false; });
+  $('resetNo').addEventListener('click', () => { $('resetConfirm').hidden = true; $('resetBtn').hidden = false; });
+  $('resetYes').addEventListener('click', () => {
+    try { localStorage.removeItem('uplands-best'); localStorage.removeItem('uplands-progress'); } catch (e) {}
+    for (const k in best) delete best[k];
+    prog = { coins: 0, paid: {}, hintUnlocked: false, undoUnlocked: false, slowUnlocked: false, ach: {}, free: { hint: true, undo: true, slow: true }, stats: {} };
+    saveProg(); renderCoins();
+    $('settings').hidden = true;
+    toast(tr('resetDone'), tr('resetDoneS'));
+    openHome();
+  });
 
   // ---------- Flujo de pantallas: inicio → mapa de mundos → juego ⇄ pausa → resultado ----------
   const DEV = location.hash === '#dev';   // #dev desbloquea todos los niveles para probar
@@ -1564,13 +1736,13 @@
       sec.className = `world w-${w.id}` + (worldUnlocked(wi) ? '' : ' locked');
       sec.style.setProperty('--wtop', t.top); sec.style.setProperty('--wbot', t.bot); sec.style.setProperty('--wink', t.ink);
       const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
-      sec.innerHTML = `<div class="wbg"></div><h2>${w.name}</h2><div class="wstat">★ ${got} / ${w.levels.length * 3}</div><div class="grid"></div>`;
+      sec.innerHTML = `<div class="wbg"></div><h2>${tr(w.id)}</h2><div class="wstat">★ ${got} / ${w.levels.length * 3}</div><div class="grid"></div>`;
       const grid = sec.querySelector('.grid');
       let nextMarked = false;
       w.levels.forEach((lv, j) => {
         const k = wi * 12 + j, b = document.createElement('button');
         b.className = 'lvl';
-        if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${j + 1}</span><span class="st">pronto</span>`; b.disabled = true; }
+        if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${j + 1}</span><span class="st">${tr('soon')}</span>`; b.disabled = true; }
         else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="n">${j + 1}</span>${LOCK_SVG}`; b.disabled = true; }
         else {
           const n = best[lv];
@@ -1578,12 +1750,12 @@
           if (n === undefined && !nextMarked) { b.classList.add('next'); nextMarked = true; }
           b.addEventListener('click', () => startLevel(lv));
         }
-        b.setAttribute('aria-label', `Nivel ${j + 1}`);
+        b.setAttribute('aria-label', tr('level', { n: j + 1 }));
         grid.appendChild(b);
       });
       if (!worldUnlocked(wi)) {
         const prev = WORLDS[wi - 1];
-        sec.insertAdjacentHTML('beforeend', `<div class="lockbig"><div>${LOCK_SVG}<span>Termina ${prev ? prev.name : 'el mundo anterior'} para desbloquear ${w.name}</span></div></div>`);
+        sec.insertAdjacentHTML('beforeend', `<div class="lockbig"><div>${LOCK_SVG}<span>${tr('unlockWorld', { prev: prev ? tr(prev.id) : '', w: tr(w.id) })}</span></div></div>`);
       }
       box.appendChild(sec);
     });
@@ -1616,7 +1788,7 @@
   function showLevelTag(lv) {
     const slot = SLOTS[slotOfLevel(lv)];
     const t = $('levelTag');
-    t.textContent = `Nivel ${slot ? slot.n : lv + 1}`;
+    t.textContent = tr('level', { n: slot ? slot.n : lv + 1 });
     t.hidden = false; t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
     clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 2300);
   }
@@ -1641,25 +1813,25 @@
     const k = slotOfLevel(L), slot = SLOTS[k], nextSlot = SLOTS[k + 1];
     $('pause').hidden = true;
     setScreen('result');   // oculta la barra del juego detrás del panel
-    $('resTitle').textContent = `Nivel ${slot.n}`;
+    $('resTitle').textContent = tr('level', { n: slot.n });
     const stars = $('resStars').children;
     for (const st of stars) st.className = '';
     $('resCoins').innerHTML = '';
     const canNext = nextSlot && nextSlot.lv !== null;
     $('resNext').disabled = !canNext;
-    $('resNext').textContent = canNext ? 'Siguiente' : 'Pronto';
+    $('resNext').textContent = canNext ? tr('next') : tr('soonBtn');
     $('result').hidden = false;
     for (let i = 0; i < 3; i++) setTimeout(() => {
       if (i < got) { stars[i].className = 'got'; Snd.sfx.star(); }
     }, 350 + i * 380);
     setTimeout(() => {
-      $('resCoins').innerHTML = earned > 0 ? `<span class="coin"></span>+${earned} monedas` : '<span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">Sin monedas nuevas: mejora tus estrellas</span>';
+      $('resCoins').innerHTML = earned > 0 ? `<span class="coin"></span>${tr('coinsPlus', { n: earned })}` : `<span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">${tr('noCoins')}</span>`;
     }, 350 + 3 * 380);
     $('resNext').focus();
   }
 
   // Ajustes (por ahora solo sonido); se abre desde el inicio o desde la pausa
-  function openSettings() { $('settings').hidden = false; $('setClose').focus(); }
+  function openSettings() { syncSettingsUI(); $('settings').hidden = false; $('setClose').focus(); }
   $('setClose').addEventListener('click', () => { $('settings').hidden = true; });
 
   $('playBtn').addEventListener('click', () => {
@@ -1669,7 +1841,6 @@
     openMap(SLOTS[k].wi);
   });
   $('settingsBtn').addEventListener('click', openSettings);
-  $('achBtn').addEventListener('click', () => toast('Logros', 'La pantalla de logros llega en la siguiente fase.'));
   $('mapBack').addEventListener('click', openHome);
   $('wPrev').addEventListener('click', () => scrollToWorld(mapWorld - 1, true));
   $('wNext').addEventListener('click', () => scrollToWorld(mapWorld + 1, true));
@@ -1688,8 +1859,7 @@
   const Snd = (() => {
     let ctx = null, musicBus, musicFilter, sfxBus, noiseBuf, timer = 0, slow = false, lastDeg = 6;
     const drones = [];
-    let mode = 0;   // 0 = música y efectos · 1 = solo efectos · 2 = silencio
-    try { mode = +(localStorage.getItem('uplands-sound') || 0) || 0; } catch (e) {}
+    let vol = { music: settings.music, sfx: settings.sfx }, muted = false;
     const SCALE = [0, 2, 4, 7, 9];          // pentatónica mayor
     const ROOT = 146.83;                    // Re3
     const freq = deg => ROOT * Math.pow(2, (SCALE[((deg % 5) + 5) % 5] + 12 * Math.floor(deg / 5)) / 12);
@@ -1718,11 +1888,11 @@
     }
     function applyMode() {
       if (!ctx) return;
-      musicBus.gain.setTargetAtTime(mode === 0 ? 0.32 : 0, ctx.currentTime, 0.3);
-      sfxBus.gain.setTargetAtTime(mode < 2 ? 0.6 : 0, ctx.currentTime, 0.05);
+      musicBus.gain.setTargetAtTime(muted ? 0 : 0.46 * vol.music, ctx.currentTime, 0.2);
+      sfxBus.gain.setTargetAtTime(muted ? 0 : 0.86 * vol.sfx, ctx.currentTime, 0.05);
     }
     function tone(f, o = {}) {
-      if (!ctx || mode === 2) return;
+      if (!ctx || muted || (o.bus === musicBus ? vol.music : vol.sfx) <= 0) return;
       const t = ctx.currentTime + (o.delay || 0), a = o.attack || 0.005, d = o.dur || 0.3;
       const osc = ctx.createOscillator(); osc.type = o.type || 'sine';
       osc.frequency.setValueAtTime(f, t);
@@ -1737,7 +1907,7 @@
       osc.start(t); osc.stop(t + a + d + 0.05);
     }
     function noise(o) {
-      if (!ctx || mode === 2) return;
+      if (!ctx || muted || vol.sfx <= 0) return;
       const t = ctx.currentTime + (o.delay || 0), d = o.dur || 0.3;
       const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
       const fl = ctx.createBiquadFilter(); fl.type = o.type || 'bandpass'; fl.Q.value = o.q || 1.2;
@@ -1771,7 +1941,7 @@
     }
     function nextNote() {
       lastDeg = Math.max(4, Math.min(13, lastDeg + [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)]));
-      if (mode === 0) {
+      if (!muted && vol.music > 0) {
         // En cámara lenta la música suena como una cinta a media velocidad: una octava más grave y el doble de larga
         const k = slow ? 0.5 : 1, len = slow ? 2 : 1;
         bell(freq(lastDeg) * k, 0.11, 0, musicBus, len);
@@ -1782,19 +1952,19 @@
 
     const sfx = {
       hop:      () => tone(330, { to: 520, dur: 0.08, gain: 0.07, type: 'triangle' }),
-      bump:     () => tone(120, { to: 70, dur: 0.12, gain: 0.22, type: 'square', lp: 380 }),
+      bump:     () => vib(12) || tone(120, { to: 70, dur: 0.12, gain: 0.22, type: 'square', lp: 380 }),
       gem:      (n) => { const d = 8 + (n % 5); bell(freq(d), 0.16); bell(freq(d + 2), 0.08, 0.07); },
-      star:     () => [0, 1, 2, 3].forEach(i => bell(freq(10 + i), 0.13, i * 0.07)),
+      star:     () => vib(25) || [0, 1, 2, 3].forEach(i => bell(freq(10 + i), 0.13, i * 0.07)),
       starLost: () => { const k = slow ? 0.5 : 1; tone(freq(8) * k, { to: freq(4) * k, dur: 0.6 / k, gain: 0.08, type: 'triangle' }); },
       fall:     () => noise({ f0: 900, f1: 140, dur: 0.6, gain: 0.08 }),
       slide:    (d) => noise({ f0: 5200, f1: 3000, dur: d, gain: 0.07, type: 'highpass', q: 0.7 }),
       portalIn: () => { tone(220, { to: 1100, dur: 0.42, gain: 0.1 }); noise({ f0: 400, f1: 2600, dur: 0.45, gain: 0.05 }); },
       portalOut:() => { tone(1100, { to: 320, dur: 0.12, gain: 0.07 }); tone(420, { to: 1300, dur: 0.4, gain: 0.08, delay: 0.05 }); },
-      button:   () => { tone(170, { to: 90, dur: 0.12, gain: 0.28, type: 'square', lp: 600 }); tone(1300, { dur: 0.035, gain: 0.06, type: 'square' }); },
+      button:   () => { vib(20); tone(170, { to: 90, dur: 0.12, gain: 0.28, type: 'square', lp: 600 }); tone(1300, { dur: 0.035, gain: 0.06, type: 'square' }); },
       barrier:  () => { tone(120, { to: 52, dur: 0.6, gain: 0.16, type: 'sawtooth', lp: 320, delay: 0.08 }); noise({ f0: 700, f1: 120, dur: 0.6, gain: 0.05, delay: 0.08 }); },
       gate:     () => tone(280, { to: 170, dur: 0.28, gain: 0.1, type: 'triangle' }),
       land:     () => { tone(95, { to: 48, dur: 0.3, gain: 0.3 }); noise({ f0: 500, f1: 90, dur: 0.3, gain: 0.06 }); },
-      win:      () => [0, 1, 2, 3, 4, 5, 7].forEach((d, i) => bell(freq(5 + d), 0.13, i * 0.09)),
+      win:      () => vib([20, 40, 20, 40, 60]) || [0, 1, 2, 3, 4, 5, 7].forEach((d, i) => bell(freq(5 + d), 0.13, i * 0.09)),
       lose:     () => { tone(freq(6), { to: freq(4), dur: 0.45, gain: 0.1, type: 'triangle' }); tone(freq(4), { to: freq(1), dur: 0.7, gain: 0.1, type: 'triangle', delay: 0.28 }); },
       voidFall: () => tone(760, { to: 110, dur: 1.1, gain: 0.1 }),
       hint:     () => [0, 2, 4].forEach((d, i) => bell(freq(12 + d), 0.07, i * 0.06)),
@@ -1805,19 +1975,6 @@
       achieve:  () => [0, 2, 4, 7].forEach((d, i) => bell(freq(7 + d), 0.14, i * 0.11)),
       click:    () => tone(880, { dur: 0.03, gain: 0.05, type: 'triangle' }),
     };
-    const LABELS = ['Todo', 'Efectos', 'Silencio'];
-    function render() {
-      const b = document.getElementById('soundBtn'); if (!b) return;
-      b.querySelector('.ico').textContent = mode === 2 ? '✕' : '♪';
-      b.querySelector('.cost').textContent = LABELS[mode];
-      b.classList.toggle('muted', mode === 2);
-    }
-    function cycle() {
-      mode = (mode + 1) % 3;
-      try { localStorage.setItem('uplands-sound', String(mode)); } catch (e) {}
-      init(); applyMode(); render();
-      if (mode < 2) sfx.click();
-    }
     // Cámara lenta: el dron baja una octava deslizándose, la música se apaga un poco (filtro) y las notas se alargan
     function setSlow(v) {
       slow = v;
@@ -1826,7 +1983,7 @@
       drones.forEach((o, i) => o.detune.setTargetAtTime((i - 1) * 5 + (v ? -1200 : 0), t, v ? 0.5 : 0.3));
       musicFilter.frequency.setTargetAtTime(v ? 1100 : 18000, t, v ? 0.4 : 0.3);
     }
-    return { init, sfx, cycle, render, setSlow };
+    return { init, sfx, setSlow, setVolumes: (m, f) => { vol = { music: m, sfx: f }; applyMode(); }, toggleMute: () => { muted = !muted; applyMode(); } };
   })();
   addEventListener('pointerdown', () => Snd.init());
   addEventListener('keydown', () => Snd.init());
@@ -1888,7 +2045,8 @@
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
   }
-  Snd.render();
+  applyI18n();
+  renderCoins();
   // Arranque: splash con el logo y después la pantalla de inicio
   setScreen('splash'); applyTheme(THEMES.cielo); phase = 'menu';
   const leaveSplash = () => {
