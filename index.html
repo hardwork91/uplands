@@ -164,6 +164,112 @@
   @keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
   @media (max-width: 520px) { .brand { max-width: none; } #hint { font-size: 12px; } }
   @media (prefers-reduced-motion: reduce) { #count.pop, #banner.win { animation: none; } }
+
+  /* ---------- Pantallas: splash, inicio, mapa de mundos, pausa, resultado, ajustes ---------- */
+  body:not([data-screen="game"]) .top, body:not([data-screen="game"]) #slowFx,
+  body:not([data-screen="game"]) #banner, body:not([data-screen="game"]) #levelTag { display: none !important; }
+  .top { justify-content: flex-end; }
+  .screen { position: fixed; inset: 0; z-index: 10; }
+  .logo { margin: 0; font-family: var(--font-display); font-weight: 700; letter-spacing: 0.08em; color: var(--ink); text-shadow: 0 3px 0 rgba(255,255,255,0.6); }
+  #splash { display: grid; place-items: center; background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 80%); transition: opacity 0.6s; cursor: pointer; }
+  #splash .logo { font-size: clamp(44px, 12vw, 96px); animation: logoIn 1s ease-out both; }
+  #splash.out { opacity: 0; }
+  @keyframes logoIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+  #home { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #home .logo { font-size: clamp(42px, 11vw, 84px); }
+  .stats { display: flex; gap: 10px; }
+  .stat { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--panel);
+    border: 1px solid var(--line); font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .stat .sicon { color: var(--star); font-size: 17px; line-height: 1; }
+  #home .stats { position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
+  .big { font-size: 22px; padding: 18px 48px; border-radius: 14px; letter-spacing: 0.06em; }
+  .primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .primary:hover { background: #2c4a66; color: #fff; }
+  .home-row { display: flex; gap: 10px; }
+
+  #map { background: #1f3346; }
+  .worlds { position: absolute; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .worlds::-webkit-scrollbar { display: none; }
+  .world { position: relative; flex: 0 0 100%; height: 100%; scroll-snap-align: start; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    padding: calc(70px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); box-sizing: border-box; }
+  .wbg { position: absolute; inset: 0; background: linear-gradient(180deg, var(--wtop), var(--wbot) 85%); z-index: -1; }
+  .wbg::before, .wbg::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+  /* Cielo: nubes blancas que pasan */
+  .w-cielo .wbg::before { background:
+      radial-gradient(60px 26px at 20% 70%, #fff 60%, transparent 62%), radial-gradient(90px 34px at 27% 72%, #fff 60%, transparent 62%),
+      radial-gradient(70px 28px at 70% 30%, rgba(255,255,255,0.9) 60%, transparent 62%), radial-gradient(110px 36px at 78% 33%, rgba(255,255,255,0.9) 60%, transparent 62%),
+      radial-gradient(80px 30px at 45% 90%, rgba(255,255,255,0.85) 60%, transparent 62%);
+    background-size: 900px 100%; animation: drift 60s linear infinite; }
+  /* Dunas: sol bajo y dunas al fondo */
+  .w-dunas .wbg::before { background: radial-gradient(circle at 72% 30%, #fff3c4 0 7%, rgba(255,226,150,0.55) 8%, transparent 22%); }
+  .w-dunas .wbg::after { background:
+      radial-gradient(70% 22% at 20% 100%, #e7a061 98%, transparent 100%), radial-gradient(80% 26% at 85% 104%, #d98a50 98%, transparent 100%);
+    opacity: 0.85; }
+  /* Escarcha: estrellas y nieve que cae */
+  .w-escarcha .wbg::before { background-image: radial-gradient(1.5px 1.5px at 10% 20%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 30% 10%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 60% 25%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 85% 12%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 75% 40%, #cfe0ff 50%, transparent 51%);
+    background-size: 340px 240px; opacity: 0.8; }
+  .w-escarcha .wbg::after { background-image: radial-gradient(2px 2px at 20% 30%, #fff 50%, transparent 51%), radial-gradient(3px 3px at 60% 70%, rgba(255,255,255,0.8) 50%, transparent 51%),
+      radial-gradient(2px 2px at 80% 20%, #fff 50%, transparent 51%), radial-gradient(2.5px 2.5px at 40% 85%, rgba(255,255,255,0.7) 50%, transparent 51%);
+    background-size: 220px 220px; animation: snow 14s linear infinite; }
+  @keyframes drift { to { background-position: 900px 0; } }
+  @keyframes snow { to { background-position: 40px 220px; } }
+  .world h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 8vw, 44px); letter-spacing: 0.08em; color: var(--wink); text-shadow: 0 2px 0 rgba(0,0,0,0.12); }
+  .world .wstat { font-family: var(--font-display); font-size: 13px; color: var(--wink); opacity: 0.85; margin-top: -10px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 76px); gap: 12px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(3, 76px); } }
+  .lvl { height: 76px; padding: 0; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    background: rgba(255,255,255,0.82); font-family: var(--font-display); font-size: 22px; color: var(--ink); }
+  .lvl .st { font-family: var(--font-body); font-size: 11px; letter-spacing: 1px; color: var(--star); min-height: 13px; }
+  .lvl .st .off { color: var(--star-off); }
+  .lvl.next { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink); animation: nextPulse 1.6s ease-in-out infinite; }
+  @keyframes nextPulse { 50% { transform: scale(1.06); } }
+  .lvl.locked, .lvl.soon { background: rgba(255,255,255,0.35); color: rgba(31,51,70,0.45); cursor: default; }
+  .lvl.soon .n { font-size: 10px; letter-spacing: 0.04em; }
+  .lvl.soon .st { color: rgba(31,51,70,0.45); font-size: 10px; letter-spacing: 0.04em; }
+  .lvl svg, .lockbig svg { width: 18px; height: 18px; }
+  .world.locked .wbg { filter: grayscale(0.5) brightness(0.9); }
+  .world.locked .grid, .world.locked .wstat { filter: grayscale(1); opacity: 0.4; }
+  .world.locked h2 { opacity: 0.7; }
+  .lockbig { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .lockbig > div { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border-radius: 14px; background: rgba(20,30,45,0.72); color: #fff; font-size: 14px; text-align: center; max-width: 240px; }
+  .lockbig svg { width: 40px; height: 40px; }
+  .map-top { position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: center; gap: 10px; pointer-events: none; }
+  .map-top > * { pointer-events: auto; }
+  .wdots { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 10px; }
+  .wdots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; background: rgba(255,255,255,0.5); border: none; }
+  .wdots button.on { background: #fff; transform: scale(1.25); }
+  .warrow { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; font-size: 26px; font-family: var(--font-body); padding: 0; }
+  .warrow.prev { left: max(12px, env(safe-area-inset-left, 0px)); } .warrow.next { right: max(12px, env(safe-area-inset-right, 0px)); }
+  @media (hover: none), (max-width: 520px) { .warrow { display: none; } }
+
+  .overlay { display: grid; place-items: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); z-index: 15; }
+  #pause { background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 85%); }   /* opaco: tapa el tablero */
+  .menu { display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(300px, 100%); }
+  .menu h2 { margin: 0 0 10px; text-align: center; font-family: var(--font-display); font-size: 30px; letter-spacing: 0.08em; color: var(--ink); }
+  .menu button { font-size: 16px; padding: 14px; }
+  #result, #settings { background: rgba(31, 51, 70, 0.35); }
+  .sheet { background: #fff; color: var(--ink); border-radius: 16px; padding: 24px 22px 20px; width: min(340px, 100%); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center; box-shadow: 0 16px 50px rgba(31,51,70,0.35); }
+  .sheet h2 { margin: 0; font-family: var(--font-display); font-size: 24px; letter-spacing: 0.06em; }
+  .sheet .sub { margin: -8px 0 0; color: var(--muted); font-size: 14px; }
+  .res-stars { display: flex; gap: 10px; font-size: 52px; line-height: 1; }
+  .res-stars span { color: var(--star-off); transform: scale(0.6); transition: transform 0.25s cubic-bezier(.3,1.6,.5,1), color 0.2s; }
+  .res-stars span.got { color: var(--star); transform: scale(1); }
+  .res-coins { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 16px; min-height: 22px; }
+  .res-actions { display: flex; gap: 8px; width: 100%; }
+  .res-actions button { flex: 1; padding: 12px 6px; font-size: 13px; }
+  .res-actions button:disabled { opacity: 0.4; cursor: default; }
+  .set-row { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; font-size: 15px; }
+  .sheet .note { margin: 0; font-size: 12px; color: var(--muted); }
+  #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
+    font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
+  @keyframes tagInOut { 0% { opacity: 0; transform: translate(-50%, -8px); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -4px); } }
+  @media (prefers-reduced-motion: reduce) { .w-cielo .wbg::before, .w-escarcha .wbg::after, .lvl.next, #splash .logo { animation: none; } }
 </style>
 </head>
 <body>
@@ -171,18 +277,12 @@
 <canvas id="scene"></canvas>
 
 <div class="top">
-  <div class="panel brand">
-    <h1>UPLANDS</h1>
-    <div id="lvl">NIVEL 1 / 7</div>
-    <p id="hint"></p>
-  </div>
   <div class="right">
   <div class="tools" aria-label="Acciones">
-    <button id="restart" class="tool" title="Reiniciar (R)"><span class="ico">↺</span><span class="lbl">Reiniciar</span><span class="cost">R</span></button>
+    <button id="pauseBtn" class="tool" title="Pausa (Esc)"><span class="ico">⏸</span><span class="lbl">Pausa</span><span class="cost">Esc</span></button>
     <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl">Pista</span><span class="cost"></span></button>
     <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl">Deshacer</span><span class="cost"></span></button>
     <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl">Lento</span><span class="cost"></span></button>
-    <button id="soundBtn" class="tool" title="Sonido (M)"><span class="ico">♪</span><span class="lbl">Sonido</span><span class="cost">Todo</span></button>
   </div>
   <div class="panel counter" aria-live="polite">
     <small>FALTAN</small>
@@ -192,16 +292,61 @@
   </div>
   </div>
 </div>
+<div id="levelTag" hidden></div>
 
-<div class="bottom">
-  <div class="left">
-    <div class="dots" id="dots" aria-label="Niveles"></div>
+<div id="splash" class="screen"><h1 class="logo">UPLANDS</h1></div>
+
+<div id="home" class="screen" hidden>
+  <div class="stats"><span class="stat"><span class="coin"></span><span id="homeCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="homeStars">0</span></span></div>
+  <h1 class="logo">UPLANDS</h1>
+  <button id="playBtn" class="primary big">Jugar</button>
+  <div class="home-row">
+    <button id="settingsBtn" class="tool"><span class="ico">⚙</span><span class="lbl">Ajustes</span></button>
+    <button id="achBtn" class="tool"><span class="ico">✪</span><span class="lbl">Logros</span></button>
   </div>
-  <div class="dpad" aria-label="Movimiento">
-    <button class="nw" data-d="W" aria-label="Izquierda">↖</button>
-    <button class="ne" data-d="N" aria-label="Arriba">↗</button>
-    <button class="sw" data-d="S" aria-label="Abajo">↙</button>
-    <button class="se" data-d="E" aria-label="Derecha">↘</button>
+</div>
+
+<div id="map" class="screen" hidden>
+  <div class="worlds" id="worlds"></div>
+  <div class="map-top">
+    <button id="mapBack">‹ Inicio</button>
+    <div class="stats"><span class="stat"><span class="coin"></span><span id="mapCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="mapStars">0</span></span></div>
+  </div>
+  <button class="warrow prev" id="wPrev" aria-label="Mundo anterior">‹</button>
+  <button class="warrow next" id="wNext" aria-label="Mundo siguiente">›</button>
+  <div class="wdots" id="wdots"></div>
+</div>
+
+<div id="pause" class="screen overlay" hidden>
+  <div class="menu">
+    <h2>Pausa</h2>
+    <button id="resumeBtn" class="primary">Continuar</button>
+    <button id="pRestart">↺ Reiniciar</button>
+    <button id="pSettings">⚙ Ajustes</button>
+    <button id="pExit">Salir al mapa</button>
+  </div>
+</div>
+
+<div id="result" class="screen overlay" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="resTitle">
+    <h2 id="resTitle">Nivel 1</h2>
+    <p class="sub">¡Superado!</p>
+    <div class="res-stars" id="resStars"><span>★</span><span>★</span><span>★</span></div>
+    <div class="res-coins" id="resCoins"></div>
+    <div class="res-actions">
+      <button id="resLevels">Niveles</button>
+      <button id="resRetry">↺ Repetir</button>
+      <button id="resNext" class="primary">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<div id="settings" class="screen overlay" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="setTitle">
+    <h2 id="setTitle">Ajustes</h2>
+    <div class="set-row"><span>Sonido</span><button id="soundBtn" class="tool" title="Sonido (M)"><span class="ico">♪</span><span class="lbl">Sonido</span><span class="cost">Todo</span></button></div>
+    <p class="note">Volumen, vibración, idioma y borrar progreso llegan en la siguiente fase.</p>
+    <button id="setClose" class="primary">Listo</button>
   </div>
 </div>
 
@@ -352,6 +497,52 @@
     scene.add(c); clouds.push(c);
   }
 
+  // ---------- Mundos: cada uno con su cielo, nubes, luz, tonos de hierba y clima ----------
+  const THEMES = {
+    cielo:    { top: '#7fb8e6', bot: '#e4f1f6', ink: '#1f3346', cloud: 0xffffff, cloudOp: 0.85, hemi: [0xeaf6ff, 0x7a8a6a, 0.7], sun: [0xfff0d8, 0.8],
+                greens: [0x86c95a, 0x6fb548, 0x9bd66a, 0x5fa843, 0xa8d46b, 0x78c25e], weather: null },
+    dunas:    { top: '#ef8a5f', bot: '#ffdca6', ink: '#5a2a14', cloud: 0xffd2a0, cloudOp: 0.7, hemi: [0xffe0c0, 0x8a6a4a, 0.75], sun: [0xffc27a, 0.85],
+                greens: [0xa9c25a, 0x98b44c, 0xb9cd66, 0x8ea845, 0xc6d06e, 0xa1bd5a], weather: 'dust' },
+    escarcha: { top: '#0f1d3d', bot: '#41659a', ink: '#ffffff', cloud: 0xb8c8e8, cloudOp: 0.5, hemi: [0xa8bde6, 0x2a3450, 0.65], sun: [0xd6e4ff, 0.6],
+                greens: [0x7fb59a, 0x6aa58a, 0x8fc2a8, 0x5f9a80, 0x9ccdb3, 0x76ad92], weather: 'snow' },
+  };
+  let theme = THEMES.cielo;
+  const hemiLight = scene.children.find(o => o.isHemisphereLight);
+  // Partículas del clima: nieve que cae o polvo dorado que flota
+  const weather = new THREE.Group(); scene.add(weather);
+  const wMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  const wGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+  for (let i = 0; i < 140; i++) {
+    const m = new THREE.Mesh(wGeo, wMat);
+    m.position.set(-11 + Math.random() * 22, -6 + Math.random() * 14, -11 + Math.random() * 22);
+    m.userData.ph = Math.random() * 6; weather.add(m);
+  }
+  function applyTheme(t) {
+    theme = t;
+    document.body.style.setProperty('--sky-top', t.top);
+    document.body.style.setProperty('--sky-bot', t.bot);
+    cloudMat.color.set(t.cloud); cloudMat.opacity = t.cloudOp;
+    hemiLight.color.set(t.hemi[0]); hemiLight.groundColor.set(t.hemi[1]); hemiLight.intensity = t.hemi[2];
+    sun.color.set(t.sun[0]); sun.intensity = t.sun[1];
+    weather.visible = !!t.weather;
+    wMat.color.set(t.weather === 'dust' ? 0xffd98f : 0xffffff);
+    wMat.opacity = t.weather === 'dust' ? 0.6 : 0.9;
+  }
+  function updateWeather(dt, time) {
+    if (!weather.visible) return;
+    for (const m of weather.children) {
+      if (theme.weather === 'snow') {
+        m.position.y -= dt * 0.7;
+        m.position.x += Math.sin(time + m.userData.ph) * dt * 0.25;
+        if (m.position.y < -6) m.position.y = 8;
+      } else {
+        m.position.x += dt * 0.5;
+        m.position.y += Math.sin(time * 0.8 + m.userData.ph) * dt * 0.15;
+        if (m.position.x > 11) m.position.x = -11;
+      }
+    }
+  }
+
   const world = new THREE.Group();
   scene.add(world);
 
@@ -489,8 +680,7 @@
   }
 
   // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
-  const GREENS = [0x86c95a, 0x6fb548, 0x9bd66a, 0x5fa843, 0xa8d46b, 0x78c25e];
-  const randomGreen = () => GREENS[Math.floor(Math.random() * GREENS.length)];
+  const randomGreen = () => theme.greens[Math.floor(Math.random() * theme.greens.length)];
 
   function makeTile(cell) {
     const g = new THREE.Group();
@@ -725,8 +915,7 @@
       });
       idx++;
     }
-    $('lvl').textContent = `NIVEL ${i + 1} / ${LEVELS.length} · ${def.name.toUpperCase()}`;
-    $('hint').textContent = def.hint;
+    showLevelTag(i);
     setCount(remaining);
     document.querySelectorAll('#dots button').forEach((b, j) => b.classList.toggle('on', j === i));
     fitCamera();
@@ -962,9 +1151,6 @@
     const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
     prog.paid[L] = Math.max(prev || 0, got);
     addCoins(earned);
-    const coinLine = earned > 0 ? `<small>+${earned} monedas</small>` : '<small>Sin monedas nuevas: mejora tus estrellas para ganar más</small>';
-    showBanner('¡Nivel superado!<span class="wstars">' + [0, 1, 2].map(i => `<span class="${i < got ? 'got' : 'off'}">★</span>`).join('') + '</span>' + coinLine, 'win');
-    const last = L === LEVELS.length - 1;
     tween(0.9, () => {}, () => {
       // Cae la última casilla con el jugador encima (y cualquier casilla que quede)
       const here = cells[key(pos[0], pos[1])];
@@ -974,13 +1160,10 @@
         dropObject(here.group);
       }
       cells = {};
-      tween(1.5, () => {}, () => {
-        freshPlayer();
-        hideBanner();
-        if (last) {
-          showBanner('¡Has completado Uplands!<small>Elige un nivel abajo para volver a jugar</small>', 'win');
-          player.visible = false; phase = 'done';
-        } else loadLevel(L + 1);
+      tween(1.3, () => {}, () => {
+        freshPlayer(); player.visible = false;
+        phase = 'done';
+        showResult(got, earned);
       });
     });
   }
@@ -996,12 +1179,7 @@
     try { localStorage.setItem('uplands-best', JSON.stringify(best)); } catch (e) {}
     renderDots();
   }
-  function renderDots() {
-    document.querySelectorAll('#dots button').forEach((b, j) => {
-      const n = best[j];
-      b.querySelector('.best').textContent = n === undefined ? '' : '★'.repeat(n) + '☆'.repeat(3 - n);
-    });
-  }
+  function renderDots() {}
   function tickStars(dt, time) {
     if (!timersOn || (phase !== 'idle' && phase !== 'moving')) return;
     for (const c of Object.values(cells)) {
@@ -1292,33 +1470,25 @@
   };
   addEventListener('keydown', e => {
     if (KEYMAP[e.key]) { e.preventDefault(); move(KEYMAP[e.key]); }
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { if (!$('pause').hidden) resume(); else pause(); }
+    if (document.body.dataset.screen !== 'game') return;
     if (e.key === 'r' || e.key === 'R') restart();
     if (e.key === 'h' || e.key === 'H') showHint();
     if (e.key === 'u' || e.key === 'U') undo();
     if (e.key === 'l' || e.key === 'L') activateSlow();
     if (e.key === 'm' || e.key === 'M') Snd.cycle();
   });
-  document.querySelectorAll('.dpad button').forEach(b => b.addEventListener('click', () => move(b.dataset.d)));
-  $('restart').addEventListener('click', restart);
   $('hintBtn').addEventListener('click', showHint);
   $('undoBtn').addEventListener('click', undo);
   $('slowBtn').addEventListener('click', activateSlow);
   $('soundBtn').addEventListener('click', () => Snd.cycle());
   function restart() {
     if (!$('modal').hidden) return;
-    if (phase === 'won') return;
+    if (phase === 'won' || document.body.dataset.screen !== 'game') return;
+    $('pause').hidden = true; $('result').hidden = true;
     while (falling.length) { const o = falling.pop().obj; if (o.parent) o.parent.remove(o); }
     loadLevel(L, false);
   }
-  const dots = $('dots');
-  LEVELS.forEach((lv, i) => {
-    const b = document.createElement('button');
-    b.innerHTML = `<span>${i + 1}</span><span class="best"></span>`; b.title = lv.name; b.setAttribute('aria-label', `Nivel ${i + 1}: ${lv.name}`);
-    b.addEventListener('click', () => { if (phase !== 'won') loadLevel(i); });
-    dots.appendChild(b);
-  });
-
-  renderDots();
 
   // Deslizar o tocar una casilla vecina
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -1346,6 +1516,172 @@
     move(ddx === 1 ? 'E' : ddx === -1 ? 'W' : ddz === 1 ? 'S' : 'N');
   });
 
+
+
+  // ---------- Flujo de pantallas: inicio → mapa de mundos → juego ⇄ pausa → resultado ----------
+  const DEV = location.hash === '#dev';   // #dev desbloquea todos los niveles para probar
+  const WORLDS = [
+    { id: 'cielo', name: 'Cielo', levels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+    { id: 'dunas', name: 'Dunas', levels: [12, 13, 14, null, null, null, null, null, null, null, null, null] },
+    { id: 'escarcha', name: 'Escarcha', levels: Array(12).fill(null) },
+  ];
+  const SLOTS = WORLDS.flatMap((w, wi) => w.levels.map((lv, j) => ({ wi, n: j + 1, lv })));
+  const slotOfLevel = lv => SLOTS.findIndex(s => s.lv === lv);
+  const isDone = lv => lv !== null && best[lv] !== undefined;
+  const slotUnlocked = k => DEV || k === 0 || (SLOTS[k].lv !== null && isDone(SLOTS[k - 1].lv));
+  const worldUnlocked = wi => slotUnlocked(wi * 12);
+  const totalStars = () => Object.values(best).reduce((a, b) => a + b, 0);
+  const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+  function setScreen(name) {
+    document.body.dataset.screen = name;
+    $('home').hidden = name !== 'home';
+    $('map').hidden = name !== 'map';
+  }
+  function updateStats() {
+    $('homeCoins').textContent = $('mapCoins').textContent = prog.coins;
+    $('homeStars').textContent = $('mapStars').textContent = totalStars();
+  }
+  function clearLevel() {
+    tweens.length = 0;
+    while (falling.length) { const o = falling.pop().obj; if (o.parent) o.parent.remove(o); }
+    while (world.children.length) world.remove(world.children[0]);
+    cells = {}; freshPlayer(); player.visible = false;
+    hideBanner(); endSlow(); phase = 'menu';
+    $('pause').hidden = true; $('result').hidden = true;
+  }
+  function openHome() {
+    clearLevel(); applyTheme(THEMES.cielo); updateStats(); setScreen('home');
+  }
+
+  // Carrusel de mundos: cada página tiene su fondo, su nombre y su cuadrícula de 12 niveles
+  let mapWorld = 0;
+  function renderMap() {
+    const box = $('worlds'); box.innerHTML = '';
+    WORLDS.forEach((w, wi) => {
+      const t = THEMES[w.id];
+      const sec = document.createElement('section');
+      sec.className = `world w-${w.id}` + (worldUnlocked(wi) ? '' : ' locked');
+      sec.style.setProperty('--wtop', t.top); sec.style.setProperty('--wbot', t.bot); sec.style.setProperty('--wink', t.ink);
+      const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
+      sec.innerHTML = `<div class="wbg"></div><h2>${w.name}</h2><div class="wstat">★ ${got} / ${w.levels.length * 3}</div><div class="grid"></div>`;
+      const grid = sec.querySelector('.grid');
+      let nextMarked = false;
+      w.levels.forEach((lv, j) => {
+        const k = wi * 12 + j, b = document.createElement('button');
+        b.className = 'lvl';
+        if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${j + 1}</span><span class="st">pronto</span>`; b.disabled = true; }
+        else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="n">${j + 1}</span>${LOCK_SVG}`; b.disabled = true; }
+        else {
+          const n = best[lv];
+          b.innerHTML = `<span class="n">${j + 1}</span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
+          if (n === undefined && !nextMarked) { b.classList.add('next'); nextMarked = true; }
+          b.addEventListener('click', () => startLevel(lv));
+        }
+        b.setAttribute('aria-label', `Nivel ${j + 1}`);
+        grid.appendChild(b);
+      });
+      if (!worldUnlocked(wi)) {
+        const prev = WORLDS[wi - 1];
+        sec.insertAdjacentHTML('beforeend', `<div class="lockbig"><div>${LOCK_SVG}<span>Termina ${prev ? prev.name : 'el mundo anterior'} para desbloquear ${w.name}</span></div></div>`);
+      }
+      box.appendChild(sec);
+    });
+    $('wdots').innerHTML = WORLDS.map((w, i) => `<button aria-label="${w.name}" data-i="${i}"></button>`).join('');
+    $('wdots').querySelectorAll('button').forEach(b => b.addEventListener('click', () => scrollToWorld(+b.dataset.i, true)));
+    syncDots();
+  }
+  function scrollToWorld(i, smooth) {
+    mapWorld = Math.max(0, Math.min(WORLDS.length - 1, i));
+    const box = $('worlds');
+    box.scrollTo({ left: mapWorld * box.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+    syncDots();
+  }
+  function syncDots() { $('wdots').querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === mapWorld)); }
+  $('worlds').addEventListener('scroll', () => {
+    const box = $('worlds'); const i = Math.round(box.scrollLeft / Math.max(1, box.clientWidth));
+    if (i !== mapWorld) { mapWorld = i; syncDots(); }
+  });
+  function openMap(wi) {
+    clearLevel(); updateStats(); renderMap(); setScreen('map');
+    requestAnimationFrame(() => scrollToWorld(wi, false));
+  }
+  function startLevel(lv) {
+    const slot = SLOTS[slotOfLevel(lv)];
+    applyTheme(THEMES[WORLDS[slot.wi].id]);
+    $('result').hidden = true; $('pause').hidden = true;
+    setScreen('game');
+    loadLevel(lv);
+  }
+  function showLevelTag(lv) {
+    const slot = SLOTS[slotOfLevel(lv)];
+    const t = $('levelTag');
+    t.textContent = `Nivel ${slot ? slot.n : lv + 1}`;
+    t.hidden = false; t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+    clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 2300);
+  }
+
+  // Pausa: un cartel opaco tapa el tablero; el tiempo de las estrellas se detiene
+  let pausedFrom = null;
+  function pause() {
+    if (document.body.dataset.screen !== 'game' || !$('modal').hidden || !$('pause').hidden) return;
+    if (!['idle', 'lost', 'intro', 'moving'].includes(phase)) return;
+    pausedFrom = phase === 'lost' ? 'lost' : 'idle';
+    // en reposo se pausa ya; si hay una animación en curso, el bucle pausa en cuanto termine
+    if (phase === 'idle' || phase === 'lost') phase = 'paused';
+    $('pause').hidden = false; $('resumeBtn').focus();
+  }
+  function resume() {
+    if ($('pause').hidden) return;
+    $('pause').hidden = true; phase = pausedFrom || 'idle';
+  }
+
+  // Resultado: las estrellas aparecen una a una, luego las monedas
+  function showResult(got, earned) {
+    const k = slotOfLevel(L), slot = SLOTS[k], nextSlot = SLOTS[k + 1];
+    $('pause').hidden = true;
+    setScreen('result');   // oculta la barra del juego detrás del panel
+    $('resTitle').textContent = `Nivel ${slot.n}`;
+    const stars = $('resStars').children;
+    for (const st of stars) st.className = '';
+    $('resCoins').innerHTML = '';
+    const canNext = nextSlot && nextSlot.lv !== null;
+    $('resNext').disabled = !canNext;
+    $('resNext').textContent = canNext ? 'Siguiente' : 'Pronto';
+    $('result').hidden = false;
+    for (let i = 0; i < 3; i++) setTimeout(() => {
+      if (i < got) { stars[i].className = 'got'; Snd.sfx.star(); }
+    }, 350 + i * 380);
+    setTimeout(() => {
+      $('resCoins').innerHTML = earned > 0 ? `<span class="coin"></span>+${earned} monedas` : '<span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">Sin monedas nuevas: mejora tus estrellas</span>';
+    }, 350 + 3 * 380);
+    $('resNext').focus();
+  }
+
+  // Ajustes (por ahora solo sonido); se abre desde el inicio o desde la pausa
+  function openSettings() { $('settings').hidden = false; $('setClose').focus(); }
+  $('setClose').addEventListener('click', () => { $('settings').hidden = true; });
+
+  $('playBtn').addEventListener('click', () => {
+    // Abre el mapa en el mundo del siguiente nivel pendiente
+    let k = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
+    if (k < 0) k = 0;
+    openMap(SLOTS[k].wi);
+  });
+  $('settingsBtn').addEventListener('click', openSettings);
+  $('achBtn').addEventListener('click', () => toast('Logros', 'La pantalla de logros llega en la siguiente fase.'));
+  $('mapBack').addEventListener('click', openHome);
+  $('wPrev').addEventListener('click', () => scrollToWorld(mapWorld - 1, true));
+  $('wNext').addEventListener('click', () => scrollToWorld(mapWorld + 1, true));
+  $('pauseBtn').addEventListener('click', pause);
+  $('resumeBtn').addEventListener('click', resume);
+  $('pRestart').addEventListener('click', () => { $('pause').hidden = true; phase = pausedFrom || 'idle'; restart(); });
+  $('pSettings').addEventListener('click', openSettings);
+  $('pExit').addEventListener('click', () => openMap(SLOTS[slotOfLevel(L)].wi));
+  $('resLevels').addEventListener('click', () => openMap(SLOTS[slotOfLevel(L)].wi));
+  $('resRetry').addEventListener('click', () => startLevel(L));
+  $('resNext').addEventListener('click', () => { const n = SLOTS[slotOfLevel(L) + 1]; if (n && n.lv !== null) startLevel(n.lv); });
+  addEventListener('resize', () => { if (document.body.dataset.screen === 'map') scrollToWorld(mapWorld, false); });
 
   // ---------- Sonido: música zen generativa y efectos, todo sintetizado con Web Audio ----------
   // (sin archivos: el navegador solo deja sonar audio después del primer clic o tecla)
@@ -1519,7 +1855,7 @@
     }
     // Cámara lenta: el mundo (estrellas, flotación, gemas, portales, nubes) usa un reloj a mitad de velocidad;
     // el jugador, los saltos y lo que él activa (botones, vallas, caídas) siguen a velocidad normal
-    if (slowLeft > 0 && phase !== 'modal') {
+    if (slowLeft > 0 && (phase === 'idle' || phase === 'moving' || phase === 'lost')) {
       slowLeft -= dt;
       $('slowBtn').querySelector('.cost').textContent = `${Math.ceil(Math.max(0, slowLeft))} s`;
       if (slowLeft <= 0) endSlow();
@@ -1527,6 +1863,8 @@
     const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
     wtime += wdt;
     tickStars(wdt, time);
+    updateWeather(wdt, wtime);
+    if (phase === 'idle' && !$('pause').hidden) phase = 'paused';
     if (pendingSlow && phase === 'idle') { pendingSlow = false; openSlowTutorial(); }
     // Flotación: ondas desde la casilla de aterrizaje que se calman y pasan a flotar cada bloque por su cuenta
     if (rippleT >= 0) {
@@ -1551,7 +1889,15 @@
     requestAnimationFrame(loop);
   }
   Snd.render();
-  loadLevel(0);
+  // Arranque: splash con el logo y después la pantalla de inicio
+  setScreen('splash'); applyTheme(THEMES.cielo); phase = 'menu';
+  const leaveSplash = () => {
+    if (document.body.dataset.screen !== 'splash') return;
+    $('splash').classList.add('out');
+    setTimeout(() => { $('splash').hidden = true; openHome(); }, 600);
+  };
+  setTimeout(leaveSplash, 2200);
+  $('splash').addEventListener('click', leaveSplash);
   loop();
 })();
 </script>
