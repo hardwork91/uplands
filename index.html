@@ -380,15 +380,17 @@
   const G_IPOST = new THREE.BoxGeometry(0.08, 0.34, 0.08), G_LAMP = new THREE.BoxGeometry(0.09, 0.05, 0.09);
   const G_PLANK = new THREE.BoxGeometry(0.84, 0.1, 0.04);
   const G_BTN_BASE = new THREE.CylinderGeometry(0.34, 0.36, 0.05, 32), G_BTN_CAP = new THREE.CylinderGeometry(0.25, 0.27, 0.1, 32);
-  const stripeMat = (() => {
+  // Franjas diagonales del color del interruptor y negro (una textura por color, reutilizada)
+  const stripeCache = {};
+  const stripeMat = (col) => stripeCache[col] || (stripeCache[col] = (() => {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 32;
     const x = cv.getContext('2d');
-    x.fillStyle = '#f5c400'; x.fillRect(0, 0, 256, 32);
+    x.fillStyle = '#' + col.toString(16).padStart(6, '0'); x.fillRect(0, 0, 256, 32);
     x.fillStyle = '#1b1b1b';
     for (let i = -32; i < 256; i += 40) { x.beginPath(); x.moveTo(i, 32); x.lineTo(i + 20, 32); x.lineTo(i + 52, 0); x.lineTo(i + 32, 0); x.closePath(); x.fill(); }
     const t = new THREE.CanvasTexture(cv);
     return new THREE.MeshLambertMaterial({ map: t });
-  })();
+  })());
   // Suelo de concreto para las casillas de barrera (se queda gris aunque se abran)
   const concreteMat = (() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 64;
@@ -524,7 +526,7 @@
       g.add(rails); cell.rails = rails;
     }
     if (cell.kind === 'lock') {
-      // Barrera industrial: vallas con franjas amarillas y negras por los 4 lados,
+      // Barrera industrial: vallas con franjas del color de su interruptor y negras por los 4 lados,
       // con una luz del color de su interruptor en cada poste
       const col = KEY_COLORS[cell.color] || 0xffffff;
       const lamp = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6 });
@@ -536,7 +538,7 @@
           const l = new THREE.Mesh(G_LAMP, lamp); l.position.set(x, 0.36, -0.43); r.add(l);
         }
         for (const y of [0.25, 0.1]) {
-          const bar = new THREE.Mesh(G_PLANK, stripeMat); bar.position.set(0, y, -0.43); bar.castShadow = true; r.add(bar);
+          const bar = new THREE.Mesh(G_PLANK, stripeMat(col)); bar.position.set(0, y, -0.43); bar.castShadow = true; r.add(bar);
         }
         r.rotation.y = YAW[side]; rails.add(r);
       }
