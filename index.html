@@ -969,6 +969,7 @@
       const m = new THREE.Mesh(G_SPARK, sparkMat); fx.add(m);
       sparks.push({ m, phase: i / 10, a0: Math.random() * Math.PI * 2 });
     }
+    fx.position.y = 0.025;   // por encima de los relieves de la hierba, para que no parpadee
     fx.userData.update = (dt, time) => {
       s1.rotation.z += dt * 2.2;
       s2.rotation.z -= dt * 3.4;
