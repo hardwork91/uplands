@@ -1077,8 +1077,8 @@
         d.add(DG.box, 0xffc23a, x, 0.068, z, 0, 0, 0, 0.016, 0.014, 0.016);
       }
       if (rnd() < 0.4) { const [cx, cz] = corners[Math.floor(rnd() * 4)]; d.add(DG.oct, 0x9c968f, cx * 0.9 - 0.06, 0.01, cz * 0.9, 0, r(0, 3), 0, 0.045, 0.025, 0.035); }
-      // matices de color en la hierba
-      for (let i = 0; i < 4; i++) d.add(DG.box, shade(top, r(0.88, 1.1)), r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
+      // parches con tonos al azar entre los verdes del mundo
+      for (let i = 0; i < 4; i++) d.add(DG.box, theme.greens[Math.floor(rnd() * theme.greens.length)], r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
     } else if (path) {
       // camino de tablones con juntas
       for (const z of [-0.3, -0.1, 0.1, 0.3]) d.add(DG.box, 0xa58a5a, 0, 0.005, z + 0.095, 0, 0, 0, 0.9, 0.01, 0.014);
