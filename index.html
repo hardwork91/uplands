@@ -373,7 +373,9 @@
   .t-L1, .t-L2, .t-L3 { background: repeating-linear-gradient(135deg, var(--kc) 0 5px, #1b1b1b 5px 10px); color: #fff; text-shadow: 0 1px 2px #000; }
   .ed-status { font-size: 13px; line-height: 1.5; }
   .ed-status .ok { color: var(--win); font-weight: 600; } .ed-status .bad { color: var(--warn); font-weight: 600; }
-  .ed-out textarea { width: 100%; min-height: 150px; box-sizing: border-box; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; resize: vertical; }
+  .ed-prev canvas { display: block; width: 100%; height: 280px; border-radius: 10px; background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 90%); }
+  #edLoadBox { background: rgba(31, 51, 70, 0.35); z-index: 25; }
+  #edLoadBox textarea, .ed-out textarea { width: 100%; min-height: 150px; box-sizing: border-box; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; resize: vertical; }
   .ed-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
@@ -445,6 +447,8 @@
     <div class="ed-top">
       <button id="edBack">‹ Inicio</button>
       <h2>Editor de mapas</h2>
+      <button id="edCopy">Copiar JSON</button>
+      <button id="edLoad">Cargar JSON</button>
       <button id="edPlay" class="primary">▶ Probar</button>
     </div>
     <div class="ed-main">
@@ -454,7 +458,7 @@
           <div class="ed-row"><label for="edName">Nombre</label><input type="text" id="edName" maxlength="40"></div>
           <div class="ed-row"><label for="edW">Ancho</label><input type="number" id="edW" min="3" max="9"><label for="edH">Alto</label><input type="number" id="edH" min="3" max="9"></div>
           <div class="ed-row"><label for="edWorld">Mundo</label><select id="edWorld"><option value="cielo">Cielo</option><option value="dunas">Dunas</option><option value="escarcha">Escarcha</option></select></div>
-          <div class="ed-actions"><button id="edClear">Vaciar</button></div>
+          <div class="ed-actions"><button id="edRotL" title="Girar a la izquierda">⟲ Girar</button><button id="edRotR" title="Girar a la derecha">Girar ⟳</button><button id="edClear">Vaciar</button></div>
         </div>
         <div class="panel">
           <span class="ed-lbl">CASILLAS</span>
@@ -466,13 +470,21 @@
           <div class="ed-grid-box"><div class="ed-grid" id="edGrid"></div></div>
           <div class="ed-status" id="edStatus"></div>
         </div>
-        <div class="panel ed-out">
-          <span class="ed-lbl">JSON (cópialo y pégamelo, o pega uno aquí y pulsa Cargar)</span>
-          <textarea id="edJson" spellcheck="false" aria-label="JSON del mapa"></textarea>
-          <div class="ed-actions"><button id="edCopy" class="primary">Copiar JSON</button><button id="edLoad">Cargar JSON</button></div>
+        <div class="panel ed-prev">
+          <span class="ed-lbl">VISTA PREVIA</span>
+          <canvas id="edPreview" aria-label="Vista previa en 3D del mapa"></canvas>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="edLoadBox" class="screen overlay" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="edLoadTitle">
+    <h2 id="edLoadTitle">JSON del mapa</h2>
+    <p class="sub" id="edLoadSub">Pega aquí el JSON de un mapa.</p>
+    <textarea id="edJson" spellcheck="false" aria-label="JSON del mapa"></textarea>
+    <div class="res-actions"><button id="edLoadCancel">Cancelar</button><button id="edLoadOk" class="primary">Cargar</button></div>
   </div>
 </div>
 
@@ -2733,6 +2745,18 @@
     }
     return { path: null };
   }
+  // Girar el mapa 90°: las flechas giran con él
+  const ROT_CW = { '^': '>', '>': 'v', 'v': '<', '<': '^' }, ROT_CCW = { '^': '<', '<': 'v', 'v': '>', '>': '^' };
+  function edRotate(cw) {
+    const H = ed.h, W = ed.w, g = ed.grid, map = cw ? ROT_CW : ROT_CCW;
+    ed.grid = Array.from({ length: W }, (_, z) => Array.from({ length: H }, (_, x) => {
+      const t = cw ? g[H - 1 - x][z] : g[x][W - 1 - z];
+      return map[t] || t;
+    }));
+    ed.w = H; ed.h = W;
+    renderEditor();
+  }
+  let edCurrentJson = '';
   function edJson() {
     const rows = edRows();
     const sol = edSolve(rows);
@@ -2751,7 +2775,8 @@
   }
   function edValidate() {
     const { sol, json } = edJson();
-    $('edJson').value = json;
+    edCurrentJson = json;
+    schedulePreview();
     const st = $('edStatus');
     if (sol.errors) st.innerHTML = sol.errors.map(e => `<span class="bad">✗</span> ${e}`).join('<br>');
     else if (sol.path) st.innerHTML = `<span class="ok">✓ Tiene solución</span> en ${sol.path.length} movimientos. Tiempo de la barra: ${2 * sol.path.length + 6} s.`;
@@ -2774,17 +2799,30 @@
   addEventListener('pointerup', () => { edPainting = false; });
   $('edPalette').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ed.brush = b.dataset.t; document.querySelectorAll('#edPalette button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   $('edName').addEventListener('input', e => { ed.name = e.target.value; edValidate(); });
-  $('edWorld').addEventListener('change', e => { ed.world = e.target.value; edValidate(); });
+  $('edWorld').addEventListener('change', e => { ed.world = e.target.value; applyTheme(THEMES[ed.world] || THEMES.cielo); edValidate(); });
   $('edW').addEventListener('change', e => { edResize(+e.target.value, ed.h); renderEditor(); });
   $('edH').addEventListener('change', e => { edResize(ed.w, +e.target.value); renderEditor(); });
   $('edClear').addEventListener('click', () => { ed.grid = ed.grid.map(r => r.map(() => '.')); renderEditor(); });
-  $('edCopy').addEventListener('click', () => {
+  $('edRotL').addEventListener('click', () => edRotate(false));
+  $('edRotR').addEventListener('click', () => edRotate(true));
+  // Copiar JSON: al portapapeles; si el navegador no deja, se muestra seleccionado para copiarlo a mano
+  function edShowJsonBox(mode) {
     const ta = $('edJson');
+    $('edLoadTitle').textContent = mode === 'copy' ? 'Copia este JSON' : 'JSON del mapa';
+    $('edLoadSub').textContent = mode === 'copy' ? 'Selecciónalo y cópialo, y pégamelo en el chat.' : 'Pega aquí el JSON de un mapa.';
+    $('edLoadOk').hidden = mode === 'copy';
+    ta.value = mode === 'copy' ? edCurrentJson : '';
+    $('edLoadBox').hidden = false;
+    ta.focus(); if (mode === 'copy') ta.select();
+  }
+  $('edCopy').addEventListener('click', () => {
     const done = () => toast('JSON copiado', 'Pégamelo en el chat y lo convierto en un nivel.');
-    if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, () => { ta.select(); toast('Selecciona y copia', 'El navegador no dejó copiar directamente: el texto ya está seleccionado.'); });
-    else { ta.select(); toast('Selecciona y copia', 'El texto ya está seleccionado.'); }
+    if (navigator.clipboard) navigator.clipboard.writeText(edCurrentJson).then(done, () => edShowJsonBox('copy'));
+    else edShowJsonBox('copy');
   });
-  $('edLoad').addEventListener('click', () => {
+  $('edLoad').addEventListener('click', () => edShowJsonBox('load'));
+  $('edLoadCancel').addEventListener('click', () => { $('edLoadBox').hidden = true; });
+  $('edLoadOk').addEventListener('click', () => {
     try {
       const d = JSON.parse($('edJson').value);
       const rows = (d.rows || []).map(r => r.trim().split(/\s+/));
@@ -2792,9 +2830,82 @@
       ed.name = d.name || ed.name; if (THEMES[d.world]) ed.world = d.world;
       ed.h = Math.min(9, rows.length); ed.w = Math.min(9, Math.max(...rows.map(r => r.length)));
       ed.grid = Array.from({ length: ed.h }, (_, z) => Array.from({ length: ed.w }, (_, x) => (rows[z] && rows[z][x]) || '.'));
+      $('edLoadBox').hidden = true;
+      applyTheme(THEMES[ed.world] || THEMES.cielo);
       renderEditor(); toast('Mapa cargado', `${ed.w}×${ed.h}`);
     } catch (e) { toast('No se pudo cargar', 'El texto no es un JSON de mapa válido.'); }
   });
+
+  // Vista previa en 3D: los mismos modelos del juego, reconstruida al editar
+  let prev = null, prevTimer = 0;
+  function schedulePreview() { clearTimeout(prevTimer); prevTimer = setTimeout(buildPreview, 80); }
+  function initPreview() {
+    if (prev) return;
+    const cv = $('edPreview');
+    const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const sc = new THREE.Scene();
+    const hemi = new THREE.HemisphereLight(0xeaf6ff, 0x7a8a6a, 0.75); sc.add(hemi);
+    const dl = new THREE.DirectionalLight(0xfff0d8, 0.8); dl.position.set(-4, 12, 6); sc.add(dl);
+    const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+    prev = { r, sc, cam, hemi, dl, root: null, gems: [], fx: [], raf: 0, t0: performance.now(), last: performance.now() };
+    const frame = now => {
+      const dt = Math.min(0.05, (now - prev.last) / 1000), time = (now - prev.t0) / 1000; prev.last = now;
+      for (const g of prev.gems) { g.rotation.y += dt * 1.6; g.position.y = 0.34 + Math.sin(time * 2.4 + g.userData.phase) * 0.04; }
+      for (const f of prev.fx) f.userData.update(dt, time);
+      prev.r.render(prev.sc, prev.cam);
+      prev.raf = requestAnimationFrame(frame);
+    };
+    prev.raf = requestAnimationFrame(frame);
+  }
+  function stopPreview() {
+    if (!prev) return;
+    cancelAnimationFrame(prev.raf); if (prev.root) disposeMerged(prev.root);
+    prev.r.dispose(); prev = null;
+  }
+  function buildPreview() {
+    if ($('editor').hidden) return;
+    initPreview();
+    const cv = $('edPreview'), w = cv.clientWidth || 400, h = cv.clientHeight || 280;
+    prev.r.setSize(w, h, false);
+    const t = THEMES[ed.world] || THEMES.cielo;
+    prev.hemi.color.set(t.hemi[0]); prev.hemi.groundColor.set(t.hemi[1]); prev.hemi.intensity = t.hemi[2];
+    prev.dl.color.set(t.sun[0]); prev.dl.intensity = t.sun[1];
+    if (prev.root) { disposeMerged(prev.root); prev.sc.remove(prev.root); }
+    const root = new THREE.Group(); prev.root = root; prev.gems = []; prev.fx = [];
+    const rows = ed.grid.map(r => r.join(' '));
+    const { s: st, start } = stateFromRows(rows);
+    const W = ed.w, H = ed.h;
+    for (const [k, c0] of Object.entries(st)) {
+      const [x, z] = k.split(',').map(Number);
+      const c = Object.assign({ key: 'ed' + k, x, z, base: c0.kind, green: t.greens[0] }, c0);
+      const g = makeTile(c);
+      g.position.set(x - (W - 1) / 2, 0, z - (H - 1) / 2);
+      root.add(g);
+      prev.gems.push(...c.gems);
+      if (c.portalFx) prev.fx.push(c.portalFx);
+    }
+    if (start) {
+      const [x, z] = start.split(',').map(Number);
+      const pl = makePlayer(); pl.rotation.y = YAW.E;
+      pl.position.set(x - (W - 1) / 2, 0, z - (H - 1) / 2); root.add(pl);
+    }
+    prev.sc.add(root);
+    // encuadre isométrico como en el juego
+    const cam = prev.cam;
+    cam.position.set(Math.cos(AZ) * Math.cos(ELEV) * 40, Math.sin(ELEV) * 40, Math.sin(AZ) * Math.cos(ELEV) * 40);
+    cam.lookAt(0, -0.4, 0); cam.updateMatrixWorld();
+    let mx = 0, my = 0;
+    for (const [x, z] of [[-0.5, -0.5], [W - 0.5, -0.5], [-0.5, H - 0.5], [W - 0.5, H - 0.5]])
+      for (const y of [0.8, -1.3]) {
+        const v = new THREE.Vector3(x - (W - 1) / 2, y, z - (H - 1) / 2).applyMatrix4(cam.matrixWorldInverse);
+        mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y));
+      }
+    const aspect = w / h, halfH = Math.max(my * 1.12, (mx * 1.08) / aspect);
+    cam.top = halfH; cam.bottom = -halfH; cam.left = -halfH * aspect; cam.right = halfH * aspect; cam.updateProjectionMatrix();
+    cv.style.background = `linear-gradient(180deg, ${t.top}, ${t.bot} 90%)`;
+  }
+
   function openEditor() {
     clearLevel(); applyTheme(THEMES[ed.world] || THEMES.cielo);
     document.body.dataset.screen = 'editor';
@@ -2802,12 +2913,13 @@
     renderEditor();
   }
   $('editorBtn').addEventListener('click', openEditor);
-  $('edBack').addEventListener('click', () => { $('editor').hidden = true; openHome(); });
+  $('edBack').addEventListener('click', () => { stopPreview(); $('editor').hidden = true; openHome(); });
   // Probar: el mapa se juega como un nivel más (sin monedas ni récords)
   $('edPlay').addEventListener('click', () => {
     const { rows, sol } = edJson();
     if (sol.errors) { toast('El mapa tiene errores', sol.errors[0]); return; }
     LEVELS[CUSTOM] = { name: ed.name, time: sol.path ? 2 * sol.path.length + 6 : 40, hint: '', rows };
+    stopPreview();
     $('editor').hidden = true;
     startLevel(CUSTOM);
   });
