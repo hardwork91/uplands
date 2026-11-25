@@ -1072,10 +1072,6 @@
       if (rnd() < 0.4) { const [cx, cz] = corners[Math.floor(rnd() * 4)]; d.add(DG.oct, 0x9c968f, cx * 0.9 - 0.06, 0.01, cz * 0.9, 0, r(0, 3), 0, 0.045, 0.025, 0.035); }
       // parches con tonos al azar entre los verdes del mundo
       for (let i = 0; i < 4; i++) d.add(DG.box, theme.greens[Math.floor(rnd() * theme.greens.length)], r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
-    } else if (path) {
-      // camino de tablones con juntas
-      for (const z of [-0.3, -0.1, 0.1, 0.3]) d.add(DG.box, 0xa58a5a, 0, 0.005, z + 0.095, 0, 0, 0, 0.9, 0.01, 0.014);
-      for (let i = 0; i < 6; i++) d.add(DG.box, 0x8d7448, r(-0.35, 0.35), 0.006, r(-0.4, 0.4), 0, 0, 0, 0.014, 0.012, 0.014);
     } else if (ice) {
       // grietas y cristales de escarcha
       for (let i = 0; i < 5; i++) d.add(DG.box, 0x5fb0d8, r(-0.3, 0.3), 0.005, r(-0.3, 0.3), 0, r(0, 3), 0, r(0.12, 0.3), 0.01, 0.012);
@@ -1198,24 +1194,38 @@
       const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = shadow; body.add(m); return m;
     };
     const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-    // piernas y zapatos
+    // Aviador: chaqueta de cuero con cuello de borrego, guantes, cinturón, pantalón caqui y botas altas
+    const JACKET = 0x8a5530, JACKET_D = 0x6e4226, FUR = 0xe6cc98, FUR_D = 0xcfae76, PANTS = 0xb08a58, PANTS_D = 0x96734a, BOOT = 0x3d2a1f, GLOVE = 0x4a3020;
     for (const x of [-0.08, 0.08]) {
-      add(B(0.12, 0.11, 0.13), 0x34436a, x, 0.085, 0);
-      add(B(0.13, 0.05, 0.17), 0x4a3426, x, 0.025, -0.015);
-      add(B(0.13, 0.012, 0.17), 0xe9e2d6, x, 0.003, -0.015, false);
+      add(B(0.12, 0.1, 0.13), PANTS, x, 0.095, 0);
+      add(B(0.124, 0.012, 0.134), PANTS_D, x, 0.12, 0, false);          // costura del pantalón
+      add(B(0.13, 0.08, 0.15), BOOT, x, 0.04, -0.01);                   // bota alta
+      add(B(0.135, 0.015, 0.175), 0x24180f, x, 0.007, -0.02, false);     // suela
+      add(B(0.132, 0.015, 0.152), 0x5a3f2c, x, 0.074, -0.01, false);     // borde de la caña
     }
-    // torso, bajo de la camiseta, cinturón y hebilla
-    add(B(0.34, 0.22, 0.26), 0xff7a59, 0, 0.255, 0);
-    add(B(0.35, 0.035, 0.27), 0xe0613f, 0, 0.16, 0, false);
-    add(B(0.355, 0.035, 0.275), 0x3a2c24, 0, 0.14, 0, false);
-    add(B(0.06, 0.04, 0.02), 0xf2c14e, 0, 0.14, -0.14, false);
-    // correas de la mochila por delante
-    for (const x of [-0.1, 0.1]) add(B(0.045, 0.21, 0.02), 0x2f3a44, x, 0.27, -0.135, false);
-    // brazos (manga, brazo y mano)
+    // chaqueta
+    add(B(0.34, 0.22, 0.26), JACKET, 0, 0.255, 0);
+    add(B(0.35, 0.04, 0.27), JACKET_D, 0, 0.16, 0, false);              // bajo elástico de la chaqueta
+    add(B(0.012, 0.19, 0.01), 0x3a2418, 0, 0.26, -0.134, false);        // cremallera
+    for (const x of [-0.11, 0.11]) add(B(0.07, 0.05, 0.01), JACKET_D, x, 0.21, -0.134, false);   // bolsillos
+    // cuello de borrego: alrededor del cuello y bajando por la abertura
+    add(B(0.32, 0.07, 0.07), FUR, 0, 0.385, 0.1);
     for (const sg of [-1, 1]) {
-      add(B(0.09, 0.09, 0.12), 0xff7a59, sg * 0.215, 0.33, 0);
-      add(B(0.075, 0.12, 0.09), 0xffd9b5, sg * 0.215, 0.23, 0);
-      add(B(0.08, 0.06, 0.095), 0xf5c9a0, sg * 0.215, 0.15, -0.005);
+      add(B(0.07, 0.07, 0.24), FUR, sg * 0.13, 0.385, 0);
+      add(B(0.05, 0.16, 0.035), FUR, sg * 0.045, 0.305, -0.135);
+      add(B(0.03, 0.05, 0.02), FUR_D, sg * 0.07, 0.36, -0.15, false);
+    }
+    // cinturón con hebilla plateada
+    add(B(0.355, 0.035, 0.275), 0x2e2219, 0, 0.14, 0, false);
+    add(B(0.06, 0.042, 0.02), 0xc3cad0, 0, 0.14, -0.142, false);
+    // correas de la mochila por delante
+    for (const x of [-0.12, 0.12]) add(B(0.04, 0.2, 0.02), 0x3a2a20, x, 0.27, -0.137, false);
+    // brazos: manga de cuero con puño de borrego y guante
+    for (const sg of [-1, 1]) {
+      add(B(0.09, 0.1, 0.12), JACKET, sg * 0.215, 0.325, 0);
+      add(B(0.08, 0.1, 0.1), JACKET, sg * 0.215, 0.235, 0);
+      add(B(0.088, 0.025, 0.108), FUR_D, sg * 0.215, 0.18, 0, false);
+      add(B(0.08, 0.06, 0.095), GLOVE, sg * 0.215, 0.14, -0.005);
     }
     // cabeza: cara, ojos con brillo, cejas, nariz, boca y mejillas
     add(B(0.3, 0.28, 0.28), 0xffd9b5, 0, 0.51, 0);
@@ -1238,9 +1248,9 @@
     }
     add(B(0.33, 0.17, 0.028), LEATHER, 0, 0.56, 0.152);
     add(B(0.022, 0.014, 0.315), LEATHER_L, 0, 0.714, 0, false);
-    // gafas: correa alrededor del casco, montura dorada, cristales y puente
+    // gafas: correa alrededor del casco, montura plateada, cristales y puente
     add(B(0.338, 0.032, 0.318), 0x3a2a20, 0, 0.665, 0, false);
-    const brass = new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.7, roughness: 0.3 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xd3d9de, metalness: 0.35, roughness: 0.3 });   // montura plateada
     const lensMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ef, emissive: 0x2a6f8f, emissiveIntensity: 0.35, metalness: 0.3, roughness: 0.1 });
     for (const x of [-0.068, 0.068]) {
       const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 16), brass);
@@ -1250,16 +1260,19 @@
       add(B(0.014, 0.014, 0.006), 0xffffff, x + 0.015, 0.69, -0.185, false);
     }
     const bridge = new THREE.Mesh(B(0.04, 0.014, 0.016), brass); bridge.position.set(0, 0.675, -0.17); body.add(bridge);
-    // Mochila cohete en la espalda (la cara mira a -z, la espalda a +z): placa, dos depósitos, franja y aletas
-    const metal = new THREE.MeshStandardMaterial({ color: 0x8d969e, metalness: 0.5, roughness: 0.4 });
-    const plate = new THREE.Mesh(B(0.26, 0.26, 0.04), metal); plate.position.set(0, 0.27, 0.15); plate.castShadow = true; body.add(plate);
+    // Mochila cohete plateada en la espalda (la cara mira a -z, la espalda a +z):
+    // placa con remaches, dos depósitos en forma de cohete con punta, rejillas, aletas y aros
+    const metal = new THREE.MeshStandardMaterial({ color: 0xd3d9de, metalness: 0.3, roughness: 0.35 });
+    const metalD = new THREE.MeshStandardMaterial({ color: 0xa2abb2, metalness: 0.3, roughness: 0.4 });
+    const plate = new THREE.Mesh(B(0.26, 0.26, 0.04), metalD); plate.position.set(0, 0.27, 0.15); plate.castShadow = true; body.add(plate);
+    for (const x of [-0.11, 0.11]) for (const y of [0.16, 0.38]) add(B(0.018, 0.018, 0.012), 0xd5dbe0, x, y, 0.172, false);
     for (const x of [-0.07, 0.07]) {
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.26, 14), metal); tank.position.set(x, 0.25, 0.21); tank.castShadow = true; body.add(tank);
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), metal); dome.position.set(x, 0.38, 0.21); body.add(dome);
-      add(new THREE.CylinderGeometry(0.057, 0.057, 0.03, 14), 0x7a4a2a, x, 0.31, 0.21, false);
-      add(B(0.015, 0.08, 0.06), 0x7a4a2a, x * 2.2, 0.16, 0.22, false);
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.24, 16), metal); tank.position.set(x, 0.26, 0.215); tank.castShadow = true; body.add(tank);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.09, 16), metal); nose.position.set(x, 0.425, 0.215); body.add(nose);
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.061, 0.061, 0.018, 16), metalD); ring.position.set(x, 0.33, 0.215); body.add(ring);
+      for (let k = 0; k < 3; k++) add(B(0.05, 0.012, 0.012), 0x2f3438, x, 0.2 + k * 0.035, 0.272, false);   // rejillas
+      const fin = new THREE.Mesh(B(0.012, 0.09, 0.07), metalD); fin.position.set(x * 2.1, 0.17, 0.215); body.add(fin);
     }
-    add(B(0.05, 0.05, 0.02), 0x4fc3ff, 0, 0.32, 0.272, false);
     const flames = new THREE.Group(); flames.visible = false;
     for (const x of [-0.07, 0.07]) {
       const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.07, 10), new THREE.MeshStandardMaterial({ color: 0x4a5258, metalness: 0.6, roughness: 0.3 }));
