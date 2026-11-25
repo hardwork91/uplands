@@ -13,23 +13,25 @@ npx serve .
 ## Reglas
 
 - Te mueves arriba, abajo, izquierda o derecha (nunca en diagonal).
-- Cada vez que entras en una casilla recoges 1 gema. Cuando se queda sin gemas y sales, se cae.
+- Cada casilla tiene un número de **pasos**: cada vez que entras gastas uno, y al salir de una casilla sin pasos, cae.
+  Las casillas de varios pasos se ven más oscuras y con losas apiladas (una por cada paso de más).
+- Cada casilla lleva como máximo **1 bidón de combustible**, que se recoge la primera vez que la pisas.
 - La casilla de inicio se cae en cuanto sales de ella.
 - No puedes moverte hacia un hueco. Si te quedas sin movimientos, reinicias.
-- Ganas al recoger todas las gemas.
+- Llenas el tanque (ganas) al recoger todos los bidones.
 
 ## Tipos de casilla
 
-| Token | Casilla | Comportamiento |
+| Ficha | Casilla | Comportamiento |
 |---|---|---|
-| `S` | Inicio | Sin gemas; se cae al salir |
-| `1`–`9` | Normal | Ese número de gemas |
+| `S` | Inicio | Sin bidón; se cae al salir |
+| `1`–`9` | Normal | Con bidón y ese número de pasos. Las de 2 o más solo aparecen en cruces |
 | `.` | Hueco | No existe |
-| `^ v < >` | Sentido único | Solo se entra moviéndose en la dirección de la flecha; vallas en los otros lados; sin gemas |
-| `+` | Hielo | Resbalas a la casilla siguiente; si detrás hay un hueco, caes al vacío |
+| `^ v < >` | Sentido único | 1 paso, sin bidón. Solo se entra moviéndose en la dirección de la flecha; vallas en los otros lados |
+| `+` / `+2` | Hielo | 1 o 2 pasos. Resbalas a la casilla siguiente; si detrás hay un hueco, caes |
 | `a`, `b` | Portal | Entras por uno y sales por el de su mismo color; ambos desaparecen |
-| `K1` | Interruptor | Al pisarlo baja todas las barreras de su color |
-| `L1`, `L1:3` | Barrera | Cerrada hasta pulsar su interruptor; 1 gema (o las indicadas tras `:`) |
+| `K1` | Interruptor | 1 paso, sin bidón. Al pisarlo baja todas las barreras de su color |
+| `L1` | Barrera | 1 paso, con bidón. Cerrada hasta pulsar su interruptor |
 
 ## Estrellas, monedas y potenciadores
 

@@ -470,7 +470,7 @@
 <script>
 (() => {
   // ---------- Niveles ----------
-  // S = inicio · 1-9 = gemas · . = vacío · ^ v < > = sentido único, sin gemas (dirección en la que hay que entrar) · a b = portales · + = hielo · K1 = interruptor del color 1 · L1 = barrera del color 1 con 1 gema (L1:3 = con 3 gemas)
+  // S = inicio · 1-9 = gemas · . = vacío · ^ v < > = sentido único, sin gemas (dirección en la que hay que entrar) · a b = portales · + = hielo (+2 = hielo de 2 pasos) · K1 = interruptor del color 1 · L1 = barrera del color 1 (1 paso, con bidón)
   const LEVELS = [
     { name: 'Serpiente', time: 30, hint: 'Muévete con las flechas, WASD o tocando una casilla vecina. Recoge todas las gemas.', rows: [
       'S 1 1 . .',
@@ -518,9 +518,9 @@
       '. 2 > > .',
       '2 1 . . .',
       '2 a . . .'] },
-    { name: 'Interruptor', time: 32, hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay celdas de combustible.', rows: [
-      '1 1 L1:2 1 1',
-      '1 . 1 . 1',
+    { name: 'Interruptor', time: 28, hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay celdas de combustible.', rows: [
+      '1 1 L1 1 1',
+      '1 . . . 1',
       'S 1 K1 1 1'] },
     { name: 'Dos botones', time: 42, hint: 'Cada botón baja solo las barreras de su color.', rows: [
       '. . 1 1 .',
@@ -571,7 +571,7 @@
     { name: 'Dunas 5', time: 46, hint: '', rows: [
       '. 1 2 L1',
       '. 2 1 >',
-      '. L1:2 K1 1',
+      '. L1 K1 1',
       '1 1 2 1',
       '. . 2 S',
       '. . 1 .'] },
@@ -582,12 +582,13 @@
       '1 1 1 . . .',
       '. . 2 1 b 2',
       '1 2 1 2 2 2'] },
-    { name: 'Dunas 7', time: 42, hint: '', rows: [
-      '. . ^ 1 .',
-      '. 1 S + .',
-      '. L1:2 K1 2 .',
-      '. 1 2 2 1',
-      '1 1 2 . .'] },
+    { name: 'Dunas 7', time: 46, hint: '', rows: [
+      '1 1 > . .',
+      'S . + . .',
+      '1 1 1 K1 1',
+      '1 1 1 1 1',
+      '1 . . 2 L1',
+      '. . 1 2 .'] },
     { name: 'Dunas 8', time: 52, hint: '', rows: [
       '. S . . . .',
       '1 1 . 1 L2 .',
@@ -604,7 +605,7 @@
       '. . . 1 1',
       '2 a 1 + .',
       '2 2 2 1 .',
-      '2 L1:2 a . .',
+      '2 L1 a . .',
       'K1 S 2 1 .'] },
     { name: 'Dunas 11', time: 52, hint: '', rows: [
       'S 2 2 1 .',
@@ -612,7 +613,7 @@
       '. . L1 2 .',
       '. . + 1 .',
       '. . 1 2 K2',
-      '. 1 1 L2:2 >'] },
+      '. 1 1 L2 >'] },
     { name: 'Dunas 12', time: 52, hint: '', rows: [
       'a 2 2 S 2 2',
       '. . b . 2 b',
@@ -644,7 +645,7 @@
       '. . 1 2 1 .',
       '. 1 1 1 S a',
       '. 1 . 1 1 1',
-      'L2 a . 1 1 L1:2',
+      'L2 a . 1 1 L1',
       'K2 2 1 1 K1 2',
       '. 1 . . . .'] },
     { name: 'Escarcha 5', time: 56, hint: '', rows: [
@@ -680,12 +681,12 @@
       '. . . a . . .',
       '1 1 1 K1 1 1 .',
       '2 . 1 . 1 1 .',
-      'L2:2 . 2 1 2 1 S',
+      'L2 . 2 1 2 1 S',
       'L1 1 2 . v . .',
       'K2 a 1 1 . . .'] },
     { name: 'Escarcha 10', time: 60, hint: '', rows: [
       'a K2 2 2 1 . .',
-      '3 L2:2 . 1 2 L1 .',
+      '3 L2 . 1 2 L1 .',
       '2 K1 1 1 . . a',
       '1 1 . . 1 + 1',
       '. 1 . S 1 . .'] },
@@ -696,14 +697,14 @@
       '. . . . 1 1 >',
       '. . . . a 1 L1',
       'b a . . . . b'] },
-    { name: 'Escarcha 12', time: 62, hint: '', rows: [
-      '1 . . L1 L2:2 K2 .',
-      '1 . . b 2 > .',
-      '1 2 2 1 + . .',
-      'a . . 1 2 . .',
-      'b . . a 2 1 S',
-      '. . . 1 . . v',
-      '. . . 1 + K1 1'] },
+    { name: 'Escarcha 12', time: 54, hint: '', rows: [
+      '. . . . . 3 .',
+      '. . . . a 3 b',
+      '. . . 1 1 ^ 1',
+      '1 L2 L1 2 > 1 +',
+      '1 1 K2 + S . 1',
+      '1 b . 1 1 1 K1',
+      '. . . . . a .'] },
   ];
 
   const DIRS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
@@ -1028,14 +1029,15 @@
   // Al entrar se gasta un paso: la losa de arriba se desprende y la casilla se aclara un nivel.
   const passShade = n => Math.pow(0.8, Math.max(0, (n ?? 1) - 1));
   const grassy = c => c.base !== 'lock' && c.kind !== 'oneway' && c.kind !== 'ice';
-  const showsPasses = c => c.kind === 'normal' || c.kind === 'lock' || c.kind === 'key' || c.kind === 'portal';
+  const showsPasses = c => c.kind === 'normal' || c.kind === 'lock' || c.kind === 'key' || c.kind === 'portal' || c.kind === 'ice';
   function buildPassFx(c) {
     const g = c.group; if (!g) return;
     if (c.passFx) { g.remove(c.passFx); c.passFx = null; }
     if (!showsPasses(c)) return;
     const passes = c.passes ?? 1, extra = Math.max(0, passes - 1);
     const base = c.green || theme.greens[0];
-    const col = grassy(c) ? shade(base, passShade(passes)) : 0x9a9da0;
+    const col = grassy(c) ? shade(base, passShade(passes)) : c.kind === 'ice' ? shade(0x8fcfec, passShade(passes)) : 0x9a9da0;
+    if (c.kind === 'ice' && c.top) c.top.material.color.setHex(col);
     // la superficie y su borde/goteo se oscurecen según los pasos que quedan
     if (grassy(c) && c.top) {
       c.top.material.color.setHex(col);
@@ -1436,9 +1438,9 @@
       else if (/^\d$/.test(t)) { c.passes = +t; c.coins = +t > 0 ? 1 : 0; }
       else if (ARROW[t]) { c.kind = 'oneway'; c.dir = ARROW[t]; }
       else if (/^[a-z]$/.test(t)) { c.kind = 'portal'; c.color = t; }
-      else if (t === '+') c.kind = 'ice';
+      else if (t === '+' || t === '+2') { c.kind = 'ice'; c.passes = t === '+2' ? 2 : 1; }   // hielo: 1 o 2 pasos
       else if (/^K\d$/.test(t)) { c.kind = 'key'; c.color = t[1]; }
-      else if (/^L\d(:\d)?$/.test(t)) { c.kind = 'lock'; c.color = t[1]; c.passes = t[3] ? +t[3] : 1; c.coins = 1; }
+      else if (/^L\d$/.test(t)) { c.kind = 'lock'; c.color = t[1]; c.passes = 1; c.coins = 1; }   // barreras: siempre 1 paso
       c.base = c.kind; c.green = randomGreen();
       remaining += c.coins;
       cells[c.key] = c;
@@ -1586,7 +1588,7 @@
     const cur = cells[key(pos[0], pos[1])];
     const target = res.fall ? null : cells[res.dest];
     const ices = res.ices.map(k => cells[k]);
-    ices.forEach(c => delete cells[c.key]);
+    ices.forEach(c => { c.passes = Math.max(0, (c.passes ?? 1) - 1); if (c.passes <= 0) delete cells[c.key]; });
 
     // La casilla que dejas se cae si ya no tiene gemas
     if (cur.passes <= 0) { delete cells[cur.key]; dropObject(cur.group); Snd.sfx.fall(); }
@@ -1616,7 +1618,12 @@
       }, () => {
         const to = live().clone();
         player.position.copy(to);
-        if (i < stops.length - 1) { dropObject(c.group); segment(i + 1, to); return; }
+        if (i < stops.length - 1) {
+          // dejas atrás el hielo: cae si no le quedan pasos; si le quedan, se desprende su capa de encima
+          if (c.passes <= 0) dropObject(c.group);
+          else if (c.passFx && c.passFx.children.length) { const top = c.passFx.children[c.passFx.children.length - 1]; world.attach(top); dropObject(top); buildPassFx(c); }
+          segment(i + 1, to); return;
+        }
         if (c.fall) return fallOff();
         pos = [target.x, target.z];
         if (target.kind === 'portal') enterPortal(target);
@@ -1984,7 +1991,7 @@
     const tk = res.dest, t = s[tk], first = res.ices[0] || tk;
     const n = { ...s };
     if (n[p].passes <= 0) delete n[p];
-    res.ices.forEach(k => delete n[k]);
+    res.ices.forEach(k => { const left = (n[k].passes ?? 1) - 1; if (left <= 0) delete n[k]; else n[k] = { ...n[k], passes: left }; });
     if (t.kind === 'portal') { delete n[tk]; n[t.pair] = { kind: 'normal', coins: 0, passes: 0 }; return [n, t.pair, first]; }
     const t2 = { ...t, kind: 'normal' };
     if (t2.coins > 0) t2.coins--;

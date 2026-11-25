@@ -6,8 +6,9 @@ const js = html.split('<script>')[1].split('</script>')[0];
 const LEVELS = eval(js.match(/const LEVELS = (\[[\s\S]*?\n  \]);/)[1]);
 let bad = 0;
 LEVELS.forEach((l, i) => {
-  const r = solve(l.rows, 400000);
-  console.log(`${String(i + 1).padStart(2)} ${l.name.padEnd(18)} soluciones: ${r.sols}  callejones: ${r.deadEnds}`);
+  const r = solve(l.rows, 300000, 200);
+  const sols = r.sols >= 200 ? '200+' : r.nodes > 300000 && !r.sols ? '¿?' : r.sols;
+  console.log(`${String(i + 1).padStart(2)} ${l.name.padEnd(18)} soluciones: ${String(sols).padEnd(5)} callejones: ${r.deadEnds}`);
   if (!r.sols) bad++;
 });
 process.exit(bad ? 1 : 0);
