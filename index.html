@@ -1343,7 +1343,7 @@
   function setCount(n, pop) {
     const got = fuelTotal - n;
     $('tankFill').style.height = (fuelTotal ? got / fuelTotal * 100 : 0) + '%';
-    $('tankCount').textContent = `${n}/${fuelTotal}`;   // lo que falta / total
+    $('tankCount').textContent = `${got}/${fuelTotal}`;   // recogidos / total
     const t = $('tank');
     if (pop) { t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash'); }
     t.classList.toggle('full', fuelTotal > 0 && n === 0);
