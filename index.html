@@ -341,12 +341,6 @@
   @keyframes fuelPop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
     30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70%); } }
   @media (max-width: 520px) { .tank-glass { height: 140px; } #tank { top: 58%; padding: 10px 8px; } }
-  /* Selector temporal de estilo del indicador de pasos (para comparar) */
-  body:not([data-screen="game"]) #passPick { display: none !important; }
-  #passPick { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    display: flex; align-items: center; gap: 10px; padding: 6px 10px; font-family: var(--font-display); font-size: 11px; max-width: calc(100% - 32px); }
-  #passPick .seg button { padding: 7px 10px; font-size: 11px; }
-  #passPick .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
@@ -386,10 +380,6 @@
   <span class="tank-count" id="tankCount">0/0</span>
 </div>
 <div id="fuelFull" hidden></div>
-<div id="passPick" class="panel" aria-label="Indicador de pasos">
-  <span>Pasos</span>
-  <div class="seg"><button data-ps="layers">Capas</button><button data-ps="cracks">Grietas</button><button data-ps="material">Material</button><button data-ps="marks">Marcas</button></div>
-</div>
 <div id="handTip" hidden></div>
 
 <div id="splash" class="screen"><h1 class="logo">UPLANDS</h1></div>
@@ -1002,7 +992,8 @@
   }
 
   // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
-  const randomGreen = () => theme.greens[Math.floor(Math.random() * theme.greens.length)];
+  // Todas las casillas de hierba usan el mismo verde de su mundo (los tonos al azar están desactivados)
+  const randomGreen = () => theme.greens[0];
 
   // Bidón de combustible rojo: cuerpo con la "X" en relieve, asa triple, tapón y costuras
   const JG = {
@@ -1033,60 +1024,40 @@
   }
 
   // ---------- Indicador de pasos que le quedan a una casilla (sin números) ----------
-  // 4 estilos para comparar: capas, grietas, materiales y marcas. Se cambia con el selector o la tecla I.
-  const PASS_STYLES = ['layers', 'cracks', 'material', 'marks'];
-  const PASS_GEO = { band: new THREE.BoxGeometry(1.02, 0.08, 1.02), crack: new THREE.BoxGeometry(1, 0.012, 0.014), post: new THREE.BoxGeometry(0.09, 0.2, 0.09), cap: new THREE.ConeGeometry(0.07, 0.07, 4) };
-  const passStyle = () => (typeof settings !== 'undefined' && PASS_STYLES.includes(settings.passStyle)) ? settings.passStyle : 'layers';
+  // Capas + color: por cada paso de más hay una losa apilada encima, y la casilla es más oscura.
+  // Al entrar se gasta un paso: la losa de arriba se desprende y la casilla se aclara un nivel.
+  const passShade = n => Math.pow(0.8, Math.max(0, (n ?? 1) - 1));
+  const grassy = c => c.base !== 'lock' && c.kind !== 'oneway' && c.kind !== 'ice';
   const showsPasses = c => c.kind === 'normal' || c.kind === 'lock' || c.kind === 'key' || c.kind === 'portal';
   function buildPassFx(c) {
     const g = c.group; if (!g) return;
     if (c.passFx) { g.remove(c.passFx); c.passFx = null; }
-    if (c.top && c.top.userData.baseColor !== undefined) c.top.material.color.setHex(c.top.userData.baseColor);
     if (!showsPasses(c)) return;
     const passes = c.passes ?? 1, extra = Math.max(0, passes - 1);
+    const base = c.green || theme.greens[0];
+    const col = grassy(c) ? shade(base, passShade(passes)) : 0x9a9da0;
+    // la superficie y su borde/goteo se oscurecen según los pasos que quedan
+    if (grassy(c) && c.top) {
+      c.top.material.color.setHex(col);
+      if (c.decoPasses !== undefined && c.decoPasses !== passes) {
+        g.children.filter(o => o.userData.merged).forEach(o => { o.geometry.dispose(); g.remove(o); });
+        decorateTile(g, c, col);
+      }
+      c.decoPasses = passes;
+    }
     const fx = new THREE.Group(); c.passFx = fx; g.add(fx);
-    const style = passStyle();
-    const rnd = rngFor(c.key + ':pass');
-    const grass = c.base === 'lock' ? 0x9a9da0 : (c.green || 0x86c95a);
-    if (style === 'layers') {
-      // A) capas: una losa de hierba apilada encima por cada paso de más, cada una más pequeña (pirámide escalonada)
-      for (let k = 1; k <= extra; k++) {
-        const w = 0.86 - (k - 1) * 0.16;
-        const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, w), lam(k % 2 ? shade(grass, 1.06) : shade(grass, 0.94)));
-        slab.position.y = 0.025 + (k - 1) * 0.05; slab.castShadow = true; slab.receiveShadow = true; fx.add(slab);
-      }
-    } else if (style === 'cracks') {
-      // B) grietas: cuantos menos pasos quedan, más agrietada (1 paso = muy agrietada)
-      const sets = Math.max(0, 3 - passes);
-      for (let k = 0; k < sets * 3; k++) {
-        const cr = new THREE.Mesh(PASS_GEO.crack, new THREE.MeshBasicMaterial({ color: 0x3b2a1c }));
-        cr.position.set(-0.3 + rnd() * 0.6, 0.008, -0.3 + rnd() * 0.6); cr.rotation.y = rnd() * Math.PI;
-        cr.scale.x = 0.15 + rnd() * 0.25; fx.add(cr);
-      }
-    } else if (style === 'material') {
-      // C) materiales: piedra (3+), tierra (2), hierba (1)
-      if (c.top && c.base !== 'lock') {
-        if (c.top.userData.baseColor === undefined) c.top.userData.baseColor = c.top.material.color.getHex();
-        if (passes >= 3) c.top.material.color.setHex(0xa7a39b);
-        else if (passes === 2) c.top.material.color.setHex(0xb98d5f);
-      }
-    } else if (style === 'marks') {
-      // D) marcas: un poste de piedra en el borde delantero por cada paso de más
-      for (let k = 0; k < extra; k++) {
-        const x = 0.39, z = 0.39 - k * 0.16;
-        const post = new THREE.Mesh(PASS_GEO.post, lam(0xb3ada4)); post.position.set(x, 0.1, z); fx.add(post);
-        const cap = new THREE.Mesh(PASS_GEO.cap, lam(0x857e75)); cap.position.set(x, 0.235, z); cap.rotation.y = Math.PI / 4; fx.add(cap);
-      }
+    for (let k = 1; k <= extra; k++) {
+      const w = 0.86 - (k - 1) * 0.16;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, w), lam(shade(col, k % 2 ? 1.04 : 0.96)));
+      slab.position.y = 0.025 + (k - 1) * 0.05; slab.castShadow = true; slab.receiveShadow = true; fx.add(slab);
     }
   }
-  // Al entrar en una casilla se gasta un paso; en "capas" y "marcas" la pieza gastada cae
   function usePass(c) {
     const before = c.passes ?? 1;
     c.passes = Math.max(0, before - 1);
-    const style = passStyle();
-    if (before >= 2 && (style === 'layers' || style === 'marks') && c.passFx && c.passFx.children.length) {
-      const piece = style === 'layers' ? c.passFx.children.slice(-1) : c.passFx.children.slice(-2);
-      for (const m of piece) { const w = m.getWorldPosition(new THREE.Vector3()); world.attach(m); dropObject(m); }
+    if (before >= 2 && c.passFx && c.passFx.children.length) {
+      const top = c.passFx.children[c.passFx.children.length - 1];
+      world.attach(top); dropObject(top);
       Snd.sfx.fall();
     }
     buildPassFx(c);
@@ -1144,8 +1115,8 @@
         d.add(DG.box, 0xffc23a, x, 0.068, z, 0, 0, 0, 0.016, 0.014, 0.016);
       }
       if (rnd() < 0.4) { const [cx, cz] = corners[Math.floor(rnd() * 4)]; d.add(DG.oct, 0x9c968f, cx * 0.9 - 0.06, 0.01, cz * 0.9, 0, r(0, 3), 0, 0.045, 0.025, 0.035); }
-      // parches con tonos al azar entre los verdes del mundo
-      for (let i = 0; i < 4; i++) d.add(DG.box, theme.greens[Math.floor(rnd() * theme.greens.length)], r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
+      // parches: matices sutiles del verde de la casilla
+      for (let i = 0; i < 4; i++) d.add(DG.box, shade(top, rnd() < 0.5 ? 1.08 : 0.92), r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
     } else if (ice) {
       // grietas y cristales de escarcha
       for (let i = 0; i < 5; i++) d.add(DG.box, 0x5fb0d8, r(-0.3, 0.3), 0.005, r(-0.3, 0.3), 0, r(0, 3), 0, r(0.12, 0.3), 0.01, 0.012);
@@ -1158,7 +1129,7 @@
 
   function makeTile(cell) {
     const g = new THREE.Group();
-    const top = cell.kind === 'oneway' ? 0xd8c79a : cell.kind === 'ice' ? 0xbfe8f7 : cell.base === 'lock' ? 0xffffff : (cell.green || randomGreen());
+    const top = cell.kind === 'oneway' ? 0xd8c79a : cell.kind === 'ice' ? 0xbfe8f7 : cell.base === 'lock' ? 0xffffff : shade(cell.green || randomGreen(), passShade(cell.passes));
     const ice = cell.kind === 'ice';
     // El hielo es un bloque azul entero (superficie brillante, cuerpo y raíz azulados)
     const iceMat = (c, e) => new THREE.MeshStandardMaterial({ color: c, emissive: e, emissiveIntensity: 0.2, roughness: 0.35, metalness: 0.1 });
@@ -1176,6 +1147,7 @@
       g.add(m);
     }
     decorateTile(g, cell, top);
+    cell.decoPasses = cell.passes ?? 1;
     cell.group = g;
     buildPassFx(cell);
     if (cell.kind === 'oneway') {
@@ -2101,7 +2073,6 @@
     if (e.key === 'u' || e.key === 'U') undo();
     if (e.key === 'l' || e.key === 'L') activateSlow();
     if (e.key === 'm' || e.key === 'M') Snd.toggleMute();
-    if (e.key === 'i' || e.key === 'I') setPassStyle(PASS_STYLES[(PASS_STYLES.indexOf(passStyle()) + 1) % PASS_STYLES.length]);
   });
   $('hintBtn').addEventListener('click', showHint);
   $('undoBtn').addEventListener('click', undo);
@@ -2779,13 +2750,6 @@
   }
   applyI18n();
   renderCoins();
-  function setPassStyle(st) {
-    settings.passStyle = st; saveSettings();
-    document.querySelectorAll('#passPick button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ps === st)));
-    for (const c of Object.values(cells)) buildPassFx(c);
-  }
-  document.querySelectorAll('#passPick button').forEach(b => b.addEventListener('click', () => setPassStyle(b.dataset.ps)));
-  setPassStyle(passStyle());
   // Icono del tanque: el mismo bidón del juego, renderizado una vez a una imagen
   (function renderCanIcon() {
     try {
