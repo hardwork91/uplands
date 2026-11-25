@@ -154,7 +154,7 @@
   #banner.stuck { color: var(--warn); font-size: clamp(16px, 4.5vw, 24px); top: auto; bottom: 30%; }
   /* Con el cartel de reintentar, el juego queda bloqueado: solo responden Reintentar y Reiniciar */
   body.locked #scene { pointer-events: none; }
-  body.locked .dpad, body.locked #hintBtn, body.locked #slowBtn { opacity: 0.4; pointer-events: none; }
+  body.locked .dpad, body.locked #hintBtn, body.locked #slowBtn, body.timeout #undoBtn { opacity: 0.4; pointer-events: none; }
   #banner .retry {
     pointer-events: auto; display: block; margin: 12px auto 0;
     font-size: 15px; padding: 12px 20px;
@@ -305,6 +305,18 @@
   @media (prefers-reduced-motion: reduce) { #handTip .hand, #handTip kbd { animation: none; } }
   /* Mini escena 3D de los modales de bloques nuevos */
   #demoCanvas { display: block; width: 100%; height: 170px; border-radius: 12px; background: linear-gradient(180deg, #bcdcf3, #eef6fa); }
+  /* Barra de tiempo: empieza llena y se vacía; al cruzar cada marca se pierde una estrella */
+  .top { justify-content: space-between; }
+  .tbar { flex: 1 1 260px; max-width: 460px; padding: 28px 16px 14px; box-sizing: border-box; }
+  .tbar .track { position: relative; height: 14px; border-radius: 999px; background: rgba(31,51,70,0.13); }
+  .tbar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 999px; background: #3fb36b; transition: background 0.3s; }
+  .tbar .fill.urgent { animation: urgent 0.6s ease-in-out infinite; }
+  @keyframes urgent { 50% { opacity: 0.45; } }
+  .tbar .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); opacity: 0.45; }
+  .tbar .mstar { position: absolute; top: -24px; transform: translateX(-50%); font-size: 17px; line-height: 1; color: var(--star); transition: color 0.2s, transform 0.2s; }
+  .tbar .mstar.lost { color: var(--star-off); transform: translateX(-50%) scale(0.8); }
+  #banner .tolevels { pointer-events: auto; display: block; margin: 8px auto 0; font-size: 14px; }
+  @media (max-width: 520px) { .tbar { max-width: none; flex-basis: auto; padding: 24px 12px 10px; } }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
@@ -317,6 +329,13 @@
 <canvas id="scene"></canvas>
 
 <div class="top">
+  <div class="panel tbar" id="tbar" aria-label="Tiempo">
+    <div class="track">
+      <div class="fill" id="tfill"></div>
+      <span class="mark" style="left:15%"></span><span class="mark" style="left:35%"></span><span class="mark" style="left:60%"></span>
+      <span class="mstar" style="left:15%">★</span><span class="mstar" style="left:35%">★</span><span class="mstar" style="left:60%">★</span>
+    </div>
+  </div>
   <div class="right">
   <div class="tools" aria-label="Acciones">
     <button id="pauseBtn" class="tool" title="Pausa (Esc)"><span class="ico">⏸</span><span class="lbl" data-i18n="pause">Pausa</span><span class="cost">Esc</span></button>
@@ -327,7 +346,6 @@
   <div class="panel counter" aria-live="polite">
     <small data-i18n="left">FALTAN</small>
     <div id="count">0</div>
-    <div id="stars" aria-label="Estrellas"></div>
     <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
   </div>
   </div>
@@ -425,195 +443,195 @@
   // ---------- Niveles ----------
   // S = inicio · 1-9 = gemas · . = vacío · ^ v < > = sentido único, sin gemas (dirección en la que hay que entrar) · a b = portales · + = hielo · K1 = interruptor del color 1 · L1 = barrera del color 1 con 1 gema (L1:3 = con 3 gemas)
   const LEVELS = [
-    { name: 'Serpiente', stars: [[2,2,6],[4,4,9.5],[1,4,12]], hint: 'Muévete con las flechas, WASD o tocando una casilla vecina. Recoge todas las gemas.', rows: [
+    { name: 'Serpiente', time: 30, hint: 'Muévete con las flechas, WASD o tocando una casilla vecina. Recoge todas las gemas.', rows: [
       'S 1 1 . .',
       '. . 1 . .',
       '. . 1 1 1',
       '. . . . 1',
       '. 1 1 1 1',
       '. 1 . . .'] },
-    { name: 'Cruce', stars: [[2,1,4.5],[3,2,8],[5,1,10]], hint: 'El cruce tiene 3 gemas: puedes volver a pisarlo 3 veces.', rows: [
+    { name: 'Cruce', time: 24, hint: 'El cruce tiene 3 gemas: puedes volver a pisarlo 3 veces.', rows: [
       '. . . 1 . .',
       'S 1 1 3 1 1',
       '. . . 1 . .'] },
-    { name: 'Campo abierto', stars: [[1,2,7],[2,2,11],[3,1,14]], hint: 'Hay muchos caminos posibles. Cuidado con cerrarte el paso.', rows: [
+    { name: 'Campo abierto', time: 36, hint: 'Hay muchos caminos posibles. Cuidado con cerrarte el paso.', rows: [
       'S 1 1 1',
       '1 1 1 1',
       '1 1 1 1',
       '1 1 1 1'] },
-    { name: 'Islotes', stars: [[3,2,8.5],[1,4,15],[0,1,21.5]], hint: 'Algunas casillas tienen 2 gemas. Una casilla solo cae cuando se vacía.', rows: [
+    { name: 'Islotes', time: 54, hint: 'Algunas casillas tienen 2 gemas. Una casilla solo cae cuando se vacía.', rows: [
       '1 1 . 1 1',
       '1 2 1 2 1',
       '. 1 S 1 .',
       '1 2 1 2 1',
       '1 1 . 1 1'] },
-    { name: 'Sentido único', stars: [[4, 2, 9.5], [3, 4, 12], [1, 1, 16]], hint: 'A las casillas con flecha solo se entra en la dirección de la flecha.', rows: [
+    { name: 'Sentido único', time: 42, hint: 'A las casillas con flecha solo se entra en la dirección de la flecha.', rows: [
       'S 1 > 1 .',
       '. 1 . 1 .',
       '. 2 1 2 1',
       '. ^ . v 1',
       '. 1 1 1 1'] },
-    { name: 'Portales', stars: [[7,3,7],[7,0,9.5],[1,3,12.5]], hint: 'Entra en un portal y saldrás por el de su mismo color. Ambos desaparecen.', rows: [
+    { name: 'Portales', time: 32, hint: 'Entra en un portal y saldrás por el de su mismo color. Ambos desaparecen.', rows: [
       'S 1 1 . . 1 1 1',
       '. . a . . b . 1',
       '. . . . . . . 1',
       '1 1 b . . a 1 1'] },
-    { name: 'Hielo', stars: [[3,1,7],[1,1,11],[1,3,14]], hint: 'El hielo te hace resbalar a la casilla siguiente. Solo se cruza una vez: elige bien la dirección.', rows: [
+    { name: 'Hielo', time: 36, hint: 'El hielo te hace resbalar a la casilla siguiente. Solo se cruza una vez: elige bien la dirección.', rows: [
       '1 1 1 1',
       'S 1 1 1',
       '1 1 + 1',
       '1 1 1 1',
       '. 1 . .'] },
-    { name: 'Cumbre', stars: [[2, 0, 6], [1, 2, 15], [3, 2, 18]], hint: 'Todo junto: gemas dobles, flechas y portales.', rows: [
+    { name: 'Cumbre', time: 44, hint: 'Todo junto: gemas dobles, flechas y portales.', rows: [
       '. . 1 2 >',
       '. 1 2 a .',
       '. 1 S 1 .',
       '. 2 > > .',
       '2 1 . . .',
       '2 a . . .'] },
-    { name: 'Interruptor', stars: [[4, 1, 7], [2, 1, 10], [0, 1, 13.5]], hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay gemas.', rows: [
+    { name: 'Interruptor', time: 32, hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay gemas.', rows: [
       '1 1 L1:2 1 1',
       '1 . 1 . 1',
       'S 1 K1 1 1'] },
-    { name: 'Dos botones', stars: [[0, 3, 7], [3, 4, 10], [2, 0, 17.5]], hint: 'Cada botón baja solo las barreras de su color.', rows: [
+    { name: 'Dos botones', time: 42, hint: 'Cada botón baja solo las barreras de su color.', rows: [
       '. . 1 1 .',
       '. . . 2 .',
       'L1 1 S 2 .',
       '1 K1 1 2 1',
       'K2 1 L2 1 .'] },
-    { name: 'Remolino helado', stars: [[0, 2, 8], [2, 2, 12], [3, 3, 16.5]], hint: 'Hielo y portales en el mismo mapa. Ojo con lo que dejas detrás.', rows: [
+    { name: 'Remolino helado', time: 42, hint: 'Hielo y portales en el mismo mapa. Ojo con lo que dejas detrás.', rows: [
       '1 2 1 . .',
       '1 S a 1 .',
       '1 1 1 1 .',
       '+ 1 2 1 1',
       '1 a 1 . .'] },
-    { name: 'Laberinto', stars: [[0, 4, 8], [3, 2, 16.5], [2, 1, 21.5]], hint: 'Las flechas deciden por dónde entras. Piensa en qué orden recorrerlo todo.', rows: [
+    { name: 'Laberinto', time: 54, hint: 'Las flechas deciden por dónde entras. Piensa en qué orden recorrerlo todo.', rows: [
       'S . . 1 .',
       '1 1 1 2 1',
       '1 . . 1 >',
       '2 1 2 2 1',
       '1 1 2 . .',
       'v 1 . . .'] },
-    { name: 'Compuertas', stars: [[4, 4, 4.5], [1, 1, 18], [1, 0, 19]], hint: 'Un solo botón abre dos barreras. Y el hielo no perdona.', rows: [
+    { name: 'Compuertas', time: 46, hint: 'Un solo botón abre dos barreras. Y el hielo no perdona.', rows: [
       '. 1 . . .',
       '2 1 . . .',
       '2 2 . . .',
       'K1 2 . . .',
       '2 2 1 + 1',
       'L1 L1 . S 1'] },
-    { name: 'Archipiélago', stars: [[0, 1, 10], [2, 2, 12.5], [0, 5, 20]], hint: 'Dos pares de portales unen islas separadas.', rows: [
+    { name: 'Archipiélago', time: 50, hint: 'Dos pares de portales unen islas separadas.', rows: [
       '. S 2 1 . .',
       '1 1 a . . .',
       'b 1 1 . . .',
       '2 2 2 1 1 ^',
       '1 . . b 1 a',
       '1 1 . . . .'] },
-    { name: 'Gran cumbre', stars: [[3, 5, 12], [5, 2, 20], [3, 1, 22]], hint: 'Todo lo aprendido, en un solo mapa.', rows: [
+    { name: 'Gran cumbre', time: 56, hint: 'Todo lo aprendido, en un solo mapa.', rows: [
       '. . . 1 . .',
       '. a 1 1 1 1',
       '. . ^ 2 S 1',
       '. . 1 2 K1 2',
       '. . 1 + 2 L1',
       'a 1 2 1 1 .'] },
-    { name: 'Dunas 4', stars: [[2, 0, 15], [1, 0, 16], [0, 1, 17.5]], hint: '', rows: [
+    { name: 'Dunas 4', time: 44, hint: '', rows: [
       '2 1 1 . .',
       '1 . 2 . .',
       '. a 2 2 2',
       '. 1 + 2 a',
       '. . . 2 S'] },
-    { name: 'Dunas 5', stars: [[2, 1, 14], [3, 3, 16.5], [0, 3, 19]], hint: '', rows: [
+    { name: 'Dunas 5', time: 46, hint: '', rows: [
       '. 1 2 L1',
       '. 2 1 >',
       '. L1:2 K1 1',
       '1 1 2 1',
       '. . 2 S',
       '. . 1 .'] },
-    { name: 'Dunas 6', stars: [[1, 2, 5.5], [2, 3, 16], [0, 5, 19]], hint: '', rows: [
+    { name: 'Dunas 6', time: 48, hint: '', rows: [
       'a . . . . .',
       'b . . . . .',
       'S 1 a . . .',
       '1 1 1 . . .',
       '. . 2 1 b 2',
       '1 2 1 2 2 2'] },
-    { name: 'Dunas 7', stars: [[4, 3, 7], [1, 3, 12.5], [0, 4, 17.5]], hint: '', rows: [
+    { name: 'Dunas 7', time: 42, hint: '', rows: [
       '. . ^ 1 .',
       '. 1 S + .',
       '. L1:2 K1 2 .',
       '. 1 2 2 1',
       '1 1 2 . .'] },
-    { name: 'Dunas 8', stars: [[0, 2, 5.5], [2, 2, 8.5], [4, 2, 12]], hint: '', rows: [
+    { name: 'Dunas 8', time: 52, hint: '', rows: [
       '. S . . . .',
       '1 1 . 1 L2 .',
       '1 . 1 K2 1 2',
       'K1 1 L1 2 2 2',
       '. . 2 2 . .'] },
-    { name: 'Dunas 9', stars: [[2, 3, 6], [3, 2, 15], [0, 0, 20.5]], hint: '', rows: [
+    { name: 'Dunas 9', time: 50, hint: '', rows: [
       '1 1 ^ 2 2',
       '. . 2 a 2',
       '. a 2 1 2',
       '. 1 1 1 S',
       '. . < 1 .'] },
-    { name: 'Dunas 10', stars: [[2, 1, 16.5], [3, 0, 19], [4, 0, 20]], hint: '', rows: [
+    { name: 'Dunas 10', time: 48, hint: '', rows: [
       '. . . 1 1',
       '2 a 1 + .',
       '2 2 2 1 .',
       '2 L1:2 a . .',
       'K1 S 2 1 .'] },
-    { name: 'Dunas 11', stars: [[3, 3, 12.5], [2, 5, 20.5], [1, 5, 21.5]], hint: '', rows: [
+    { name: 'Dunas 11', time: 52, hint: '', rows: [
       'S 2 2 1 .',
       '2 2 . K1 .',
       '. . L1 2 .',
       '. . + 1 .',
       '. . 1 2 K2',
       '. 1 1 L2:2 >'] },
-    { name: 'Dunas 12', stars: [[4, 4, 9.5], [2, 2, 18], [3, 4, 20.5]], hint: '', rows: [
+    { name: 'Dunas 12', time: 52, hint: '', rows: [
       'a 2 2 S 2 2',
       '. . b . 2 b',
       '. . 1 K1 2 a',
       '. . . 1 1 v',
       '. . . 1 1 1',
       '. . . L1 . .'] },
-    { name: 'Escarcha 1', stars: [[1, 4, 13.5], [4, 2, 17.5], [4, 4, 20.5]], hint: '', rows: [
+    { name: 'Escarcha 1', time: 50, hint: '', rows: [
       '. 2 + 1 1',
       '2 2 . . S',
       '2 1 1 2 1',
       '1 2 . 1 .',
       '. 1 . 1 1'] },
-    { name: 'Escarcha 2', stars: [[3, 5, 14], [5, 3, 17.5], [5, 0, 21.5]], hint: '', rows: [
+    { name: 'Escarcha 2', time: 52, hint: '', rows: [
       '. . . . . 1',
       '. . . 1 . 1',
       '. . . 2 1 2',
       '. . S 2 a 1',
       'a 2 2 . . 1',
       '1 1 K1 1 L1 1'] },
-    { name: 'Escarcha 3', stars: [[2, 5, 14], [3, 3, 20], [6, 3, 22]], hint: '', rows: [
+    { name: 'Escarcha 3', time: 54, hint: '', rows: [
       '. . . 1 . . .',
       '. 1 + 2 . . .',
       '. 2 S > . . .',
       '. 2 2 1 1 1 1',
       '. 1 2 > . . .',
       '1 2 1 1 . . .'] },
-    { name: 'Escarcha 4', stars: [[1, 1, 12], [3, 1, 16.5], [2, 4, 20]], hint: '', rows: [
+    { name: 'Escarcha 4', time: 58, hint: '', rows: [
       '. . 1 2 1 .',
       '. 1 1 1 S a',
       '. 1 . 1 1 1',
       'L2 a . 1 1 L1:2',
       'K2 2 1 1 K1 2',
       '. 1 . . . .'] },
-    { name: 'Escarcha 5', stars: [[5, 4, 8.5], [5, 1, 12.5], [3, 1, 19]], hint: '', rows: [
+    { name: 'Escarcha 5', time: 56, hint: '', rows: [
       '. . . 1 1 1 2',
       '2 2 1 1 1 1 2',
       '. . . . 1 1 .',
       '. . 1 1 1 2 .',
       '. . < 1 S 1 .'] },
-    { name: 'Escarcha 6', stars: [[3, 4, 11], [3, 2, 17.5], [6, 0, 21.5]], hint: '', rows: [
+    { name: 'Escarcha 6', time: 54, hint: '', rows: [
       '. 1 . a 1 1 1',
       'S 2 1 b 1 . 1',
       '. . + 1 2 . .',
       '. . 1 a 1 1 .',
       '. . . 1 2 2 1',
       '. . . . 1 b .'] },
-    { name: 'Escarcha 7', stars: [[3, 0, 13.5], [0, 1, 16.5], [3, 6, 24.5]], hint: '', rows: [
+    { name: 'Escarcha 7', time: 60, hint: '', rows: [
       'L1 1 2 1',
       '1 K1 1 ^',
       'L1 2 1 2',
@@ -621,7 +639,7 @@
       '. 2 S 2',
       '. 2 1 1',
       '. . . 1'] },
-    { name: 'Escarcha 8', stars: [[3, 0, 9.5], [3, 4, 20], [5, 1, 25.5]], hint: '', rows: [
+    { name: 'Escarcha 8', time: 64, hint: '', rows: [
       'a . 1 1 . .',
       '1 + 1 + 1 1',
       '. . . 1 . 1',
@@ -629,27 +647,27 @@
       '. . 2 1 1 2',
       '. . 2 1 1 1',
       '. 1 2 a 2 S'] },
-    { name: 'Escarcha 9', stars: [[5, 1, 8.5], [2, 1, 18], [2, 5, 24.5]], hint: '', rows: [
+    { name: 'Escarcha 9', time: 62, hint: '', rows: [
       '. . . a . . .',
       '1 1 1 K1 1 1 .',
       '2 . 1 . 1 1 .',
       'L2:2 . 2 1 2 1 S',
       'L1 1 2 . v . .',
       'K2 a 1 1 . . .'] },
-    { name: 'Escarcha 10', stars: [[2, 2, 9.5], [4, 0, 14], [1, 4, 24.5]], hint: '', rows: [
+    { name: 'Escarcha 10', time: 60, hint: '', rows: [
       'a K2 2 2 1 . .',
       '3 L2:2 . 1 2 L1 .',
       '2 K1 1 1 . . a',
       '1 1 . . 1 + 1',
       '. 1 . S 1 . .'] },
-    { name: 'Escarcha 11', stars: [[5, 4, 12], [6, 2, 14], [5, 2, 15]], hint: '', rows: [
+    { name: 'Escarcha 11', time: 66, hint: '', rows: [
       '2 2 2 + 2 K1 .',
       '2 S 2 2 + . .',
       '2 . . 2 2 1 1',
       '. . . . 1 1 >',
       '. . . . a 1 L1',
       'b a . . . . b'] },
-    { name: 'Escarcha 12', stars: [[3, 5, 7], [3, 2, 20], [0, 0, 25.5]], hint: '', rows: [
+    { name: 'Escarcha 12', time: 62, hint: '', rows: [
       '1 . . L1 L2:2 K2 .',
       '1 . . b 2 > .',
       '1 2 2 1 + . .',
@@ -999,7 +1017,7 @@
 
   // ---------- Estado del juego ----------
   let L = 0, cells = {}, pos = null, remaining = 0, W = 0, H = 0;
-  let timersOn = false, starStatus = [];
+  let timersOn = false, timeMax = 40, timeLeft = 40, starsShown = 3;
   let rippleT = -1, rippleO = [0, 0];
   const tmpV = new THREE.Vector3();
   let phase = 'idle'; // idle | moving | won | intro
@@ -1014,10 +1032,14 @@
     banner.innerHTML = html; banner.className = cls; banner.hidden = false;
     document.body.classList.toggle('locked', cls === 'stuck');
   }
-  function hideBanner() { banner.hidden = true; document.body.classList.remove('locked'); }
+  function hideBanner() { banner.hidden = true; document.body.classList.remove('locked', 'timeout'); }
   // Botón clicable dentro del cartel (el cartel en sí no captura clics)
   const retryBtn = () => `<button class="retry" type="button">${tr('tryAgain')}</button>`;
-  banner.addEventListener('click', e => { if (e.target.closest('.retry')) restart(); if (e.target.closest('.undo')) undo(); });
+  banner.addEventListener('click', e => {
+    if (e.target.closest('.retry')) restart();
+    if (e.target.closest('.undo')) undo();
+    if (e.target.closest('.tolevels')) openMap(SLOTS[slotOfLevel(L)].wi);
+  });
   function setCount(n, pop) {
     const el = $('count'); el.textContent = n;
     if (pop) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
@@ -1063,13 +1085,9 @@
     for (const c of Object.values(cells)) if (c.kind === 'portal')
       c.pair = Object.values(cells).find(o => o !== c && o.kind === 'portal' && o.color === c.color).key;
 
-    // Estrellas: solo en casillas normales de 1 gema
-    timersOn = false; starStatus = [];
-    (def.stars || []).forEach(([x, z, t]) => {
-      const c = cells[key(x, z)];
-      if (c && c.kind === 'normal' && c.coins === 1) { c.star = { time: t, left: t, idx: starStatus.length }; starStatus.push('pending'); }
-    });
-    renderStars();
+    // Barra de tiempo: llena al empezar; empieza a bajar con el primer movimiento
+    timersOn = false; timeMax = def.time || 40; timeLeft = timeMax; starsShown = 3;
+    renderBar();
 
     // El mapa aparece subiendo desde abajo, casilla por casilla
     let idx = 0, maxIntro = 0;
@@ -1259,12 +1277,7 @@
     c.coins--; remaining--;
     setCount(remaining, true);
     const gem = c.gems.pop();
-    if (gem.userData.isStar && c.star) { Snd.sfx.star(); if (c.star.left < 1) unlockAchievement('close'); } else Snd.sfx.gem(remaining);
-    if (gem.userData.isStar && c.star) {
-      starStatus[c.star.idx] = 'got';
-      c.group.remove(c.star.holder); c.star = null;
-      renderStars();
-    }
+    Snd.sfx.gem(remaining);
     gem.material.transparent = true;
     const y0 = gem.position.y;
     tween(0.4, k => {
@@ -1356,37 +1369,42 @@
   function win() {
     phase = 'won'; queued = null;
     Snd.sfx.win();
-    const got = starStatus.filter(s => s === 'got').length;
+    const got = starsNow();
     saveBest(L, got);
     if (got === 3) unlockAchievement('lightning');
-    if (starStatus.length === 3 && starStatus.every(s => s === 'lost')) unlockAchievement('slowpoke');
+    if (got === 0) unlockAchievement('slowpoke');
+    if (timeLeft / timeMax < 0.05) unlockAchievement('close');
     if (WORLDS[0].levels.every(lv => best[lv] === 3)) unlockAchievement('perfect');
     // Monedas: 5 por pasar el nivel la primera vez + 10 por cada estrella que mejore tu récord anterior
     const prev = prog.paid[L];
     const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
     prog.paid[L] = Math.max(prev || 0, got);
     addCoins(earned);
-    tween(0.9, () => {}, () => {
-      // Cae la última casilla con el jugador encima (y cualquier casilla que quede)
-      const here = cells[key(pos[0], pos[1])];
-      for (const c of Object.values(cells)) if (c !== here) dropObject(c.group);
-      if (here) {
-        here.group.attach(player);
-        dropObject(here.group);
-      }
-      cells = {};
-      tween(1.3, () => {}, () => {
-        freshPlayer(); player.visible = false;
-        phase = 'done';
-        showResult(got, earned);
+    tween(0.45, () => {}, () => {
+      // El jugador se agacha, toma impulso y sale volando hacia arriba (estilo Superman);
+      // los bloques caen sin él, y en el siguiente nivel llegará desde el cielo
+      const body = player.userData.body;
+      tween(0.2, k => body.scale.set(1 + 0.2 * k, 1 - 0.3 * k, 1 + 0.2 * k), () => {
+        scene.attach(player);
+        const y0 = player.position.y;
+        Snd.sfx.portalOut();
+        for (const c of Object.values(cells)) dropObject(c.group);
+        cells = {};
+        tween(1.25, k => {
+          const e = Math.min(1, k * 3);
+          body.scale.set(1 - 0.15 * e, 1 + 0.35 * e, 1 - 0.15 * e);
+          body.rotation.x = -0.55 * Math.min(1, k * 2);   // se inclina hacia delante al volar
+          player.position.y = y0 + 1.6 * k + 14 * k * k;
+        }, () => {
+          freshPlayer(); player.visible = false;
+          phase = 'done';
+          showResult(got, earned);
+        });
       });
     });
   }
 
   // ---------- Estrellas: HUD y mejor resultado ----------
-  function renderStars() {
-    $('stars').innerHTML = starStatus.map(s => `<span class="${s === 'got' ? 'got' : s === 'lost' ? 'lost' : ''}">★</span>`).join('');
-  }
   let best = {};
   try { best = JSON.parse(localStorage.getItem('uplands-best') || '{}') || {}; } catch (e) { best = {}; }
   function saveBest(i, n) {
@@ -1395,28 +1413,31 @@
     renderDots();
   }
   function renderDots() {}
-  function tickStars(dt, time) {
+  const starsFor = f => (f > 0.6 ? 3 : f > 0.35 ? 2 : f > 0.15 ? 1 : 0);
+  const starsNow = () => starsFor(timeLeft / timeMax);
+  function tickBar(dt) {
     if (!timersOn || (phase !== 'idle' && phase !== 'moving')) return;
-    for (const c of Object.values(cells)) {
-      if (!c.star) continue;
-      const st = c.star, star = c.gems[0];
-      st.left -= dt;
-      if (st.left <= 0) {
-        // Se apaga: vuelve a ser una gema normal
-        c.group.remove(star); c.group.remove(st.holder);
-        const gem = new THREE.Mesh(G.gem, gemMat.clone());
-        gem.position.copy(star.position); gem.userData.phase = star.userData.phase;
-        c.group.add(gem); c.gems[0] = gem;
-        starStatus[st.idx] = 'lost'; c.star = null;
-        if (!prog.slowUnlocked) pendingSlow = true;
-        Snd.sfx.starLost();
-        renderStars();
-        continue;
-      }
-      setRing(c);
-      const f = st.left / st.time;
-      star.visible = f > 0.3 || Math.floor(time * (4 + (0.3 - f) * 50)) % 2 === 0;
-    }
+    timeLeft = Math.max(0, timeLeft - dt);
+    const st = starsNow();
+    if (st < starsShown) { starsShown = st; Snd.sfx.starLost(); if (!prog.slowUnlocked) pendingSlow = true; }
+    renderBar();
+    if (timeLeft <= 0 && phase === 'idle') timeUp();   // si estaba saltando, espera a que aterrice
+  }
+  function renderBar() {
+    const f = timeLeft / timeMax, fill = $('tfill');
+    fill.style.width = (f * 100) + '%';
+    fill.style.background = f > 0.6 ? '#3fb36b' : f > 0.35 ? '#e0b030' : f > 0.15 ? '#e8833a' : '#d9443a';
+    fill.classList.toggle('urgent', timersOn && f <= 0.15);
+    document.querySelectorAll('#tbar .mstar').forEach((el, i) => el.classList.toggle('lost', starsFor(f) < i + 1));
+  }
+  // Se acabó el tiempo: caen todos los bloques, y el jugador con el suyo
+  function timeUp() {
+    phase = 'timeout'; queued = null; clearHints();
+    Snd.sfx.lose(); Snd.sfx.fall(); vib([60, 40, 60]);
+    for (const c of Object.values(cells)) dropObject(c.group);
+    cells = {};
+    showBanner(`${tr('timeUp')}<small>${tr('timeUpS')}</small>` + retryBtn() + `<button class="tolevels" type="button">${tr('levels')}</button>`, 'stuck');
+    document.body.classList.add('timeout');
   }
 
   // ---------- Economía, logros y tutorial de la pista ----------
@@ -1493,7 +1514,7 @@
   let history = [];
   function pushHistory() {
     history.push({
-      pos: pos.slice(), remaining, timersOn, starStatus: starStatus.slice(),
+      pos: pos.slice(), remaining, timersOn, timeLeft,
       cells: Object.values(cells).map(c => ({
         key: c.key, x: c.x, z: c.z, kind: c.kind, base: c.base, coins: c.coins, dir: c.dir, color: c.color, pair: c.pair,
         green: c.green, bobAmp: c.bobAmp, bobSpeed: c.bobSpeed, bobPhase: c.bobPhase,
@@ -1540,7 +1561,7 @@
       cells[c.key] = c;
     }
     pos = snap.pos.slice(); remaining = snap.remaining; setCount(remaining);
-    starStatus = snap.starStatus.slice(); renderStars(); timersOn = snap.timersOn;
+    timeLeft = snap.timeLeft; timersOn = snap.timersOn; starsShown = starsNow(); renderBar();
     rippleT = clock.elapsedTime - 10;   // sin ondas: directamente a flotar
     const here = cells[key(pos[0], pos[1])];
     here.group.add(player); player.position.set(0, 0, 0); player.visible = true;
@@ -1552,7 +1573,7 @@
   // Cámara lenta: se presenta la primera vez que se apaga una estrella
   let slowLeft = 0, pendingSlow = false;
   function openSlowTutorial() {
-    const anyLeft = starStatus.includes('pending');
+    const anyLeft = starsNow() > 0;
     openModal(tr('slowTitle'),
       `<p>${tr('slowP1')}</p><p>${tr('slowP2', { s: SLOW_DUR })}</p>` + costLine(tr('firstFree', { c: SLOW_COST })),
       anyLeft
@@ -1745,10 +1766,11 @@
       hintCost: 'La primera es gratis. Después cuesta {c} monedas. Tienes {have}.',
       hintP2: 'Las monedas se ganan pasando niveles por primera vez, consiguiendo estrellas nuevas y con algún que otro secreto.', ok: 'Entendido',
       undoTitle: '↶ Deshacer', undoP1: 'Con ese movimiento ya no puedes recoger todas las gemas.',
-      undoP2: 'Puedes deshacerlo y volver un paso atrás: las casillas caídas y las gemas vuelven a su sitio.',
+      undoP2: 'Puedes deshacerlo y volver un paso atrás: las casillas caídas, las gemas y el tiempo vuelven a como estaban.',
       firstFree: 'La primera vez es gratis. Después cuesta {c} monedas.', keepGoing: 'Seguir así', undoFree: '↶ Deshacer gratis',
       slowTitle: '⏳ Cámara lenta', slowP1: 'Se te escapó una estrella.',
-      slowP2: 'La cámara lenta hace que el mundo vaya a la mitad de velocidad durante {s} segundos, así que las estrellas tardan el doble en apagarse. Tú te sigues moviendo igual de rápido.',
+      slowP2: 'La cámara lenta hace que el mundo, y también la barra de tiempo, vayan a la mitad de velocidad durante {s} segundos. Tú te sigues moviendo igual de rápido.',
+      timeUp: 'Se acabó el tiempo', timeUpS: 'La isla no aguantó más.',
       notNow: 'Ahora no', tryFree: '⏳ Probar gratis',
       music: 'Música', sfx: 'Efectos', vibration: 'Vibración', language: 'Idioma', reset: 'Borrar progreso',
       resetConfirm: '¿Seguro? Se perderán estrellas, monedas y logros.', cancel: 'Cancelar', resetYes: 'Borrar', done: 'Listo', close: 'Cerrar',
@@ -1772,10 +1794,11 @@
       hintCost: 'The first one is free. After that it costs {c} coins. You have {have}.',
       hintP2: 'You earn coins by clearing levels for the first time, getting new stars and finding the odd secret.', ok: 'Got it',
       undoTitle: '↶ Undo', undoP1: 'After that move you can no longer collect every gem.',
-      undoP2: 'You can undo it and go back one step: fallen tiles and gems return to their place.',
+      undoP2: 'You can undo it and go back one step: fallen tiles, gems and time return to how they were.',
       firstFree: 'The first time is free. After that it costs {c} coins.', keepGoing: 'Keep going', undoFree: '↶ Undo for free',
       slowTitle: '⏳ Slow motion', slowP1: 'A star slipped away.',
-      slowP2: 'Slow motion makes the world run at half speed for {s} seconds, so stars take twice as long to fade. You still move at full speed.',
+      slowP2: 'Slow motion makes the world, and the time bar, run at half speed for {s} seconds. You still move at full speed.',
+      timeUp: 'Time is up', timeUpS: 'The island gave way.',
       notNow: 'Not now', tryFree: '⏳ Try it free',
       music: 'Music', sfx: 'Sound effects', vibration: 'Vibration', language: 'Language', reset: 'Reset progress',
       resetConfirm: 'Are you sure? Stars, coins and achievements will be lost.', cancel: 'Cancel', resetYes: 'Erase', done: 'Done', close: 'Close',
@@ -1809,8 +1832,8 @@
     { id: 'lightning', icon: '★', es: ['Rayo', 'Conseguiste las 3 estrellas de un nivel.'], en: ['Lightning', 'You got all 3 stars in a level.'] },
     { id: 'stubborn', icon: '⨯', es: ['Cabezota', 'Chocaste 10 veces seguidas contra un obstáculo.'], en: ['Stubborn', 'You bumped into an obstacle 10 times in a row.'] },
     { id: 'patience', icon: '◷', es: ['Paciencia', 'Esperaste un minuto antes de dar el primer paso.'], en: ['Patience', 'You waited a minute before taking your first step.'] },
-    { id: 'slowpoke', icon: '☾', es: ['Sin prisa', 'Ganaste un nivel dejando que se apagaran sus 3 estrellas.'], en: ['No rush', 'You beat a level after letting all 3 stars fade.'] },
-    { id: 'close', icon: '!', es: ['Por los pelos', 'Cogiste una estrella en su último segundo.'], en: ['Close call', 'You grabbed a star in its last second.'] },
+    { id: 'slowpoke', icon: '☾', es: ['Sin prisa', 'Ganaste un nivel sin ninguna estrella.'], en: ['No rush', 'You beat a level with no stars.'] },
+    { id: 'close', icon: '!', es: ['Por los pelos', 'Ganaste un nivel con la barra de tiempo casi vacía.'], en: ['Close call', 'You beat a level with the time bar almost empty.'] },
     { id: 'skater', icon: '❄', es: ['Patinador', 'Cruzaste 5 bloques de hielo.'], en: ['Skater', 'You crossed 5 ice blocks.'] },
     { id: 'traveler', icon: '◎', es: ['Viajero', 'Usaste 10 portales.'], en: ['Traveler', 'You used 10 portals.'] },
     { id: 'perfect', icon: '♛', es: ['Perfeccionista', 'Conseguiste 3 estrellas en todos los niveles de Cielo.'], en: ['Perfectionist', 'You got 3 stars in every Sky level.'] },
@@ -2326,7 +2349,7 @@
     }
     const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
     wtime += wdt;
-    tickStars(wdt, time);
+    tickBar(wdt);
     updateWeather(wdt, wtime);
     if (phase === 'idle' && !$('pause').hidden) phase = 'paused';
     if (pendingSlow && phase === 'idle') { pendingSlow = false; openSlowTutorial(); }
