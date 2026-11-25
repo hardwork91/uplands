@@ -1393,8 +1393,7 @@
         tween(1.25, k => {
           const e = Math.min(1, k * 3);
           body.scale.set(1 - 0.15 * e, 1 + 0.35 * e, 1 - 0.15 * e);
-          body.rotation.x = -0.55 * Math.min(1, k * 2);   // se inclina hacia delante al volar
-          player.position.y = y0 + 1.6 * k + 14 * k * k;
+          player.position.y = y0 + 13 * Math.pow(k, 1.6);   // recto hacia arriba, acelerando
         }, () => {
           freshPlayer(); player.visible = false;
           phase = 'done';
