@@ -321,13 +321,14 @@
   /* Tanque de combustible: se llena de abajo arriba con cada celda */
   body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull { display: none !important; }
   #tank { position: fixed; z-index: 4; left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 10px; pointer-events: none; }
+    display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 6px; pointer-events: none;
+    width: 64px; box-sizing: border-box; }   /* ancho fijo: no cambia con los números */
   /* misma pista que la barra de tiempo, pero vertical */
   .tank-glass { position: relative; width: 14px; height: 190px; border-radius: 999px; background: rgba(31, 51, 70, 0.13); overflow: hidden; }
   .tank-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; border-radius: 999px; transition: height 0.45s cubic-bezier(.3, 1.5, .5, 1);
     background: linear-gradient(90deg, #121212 0%, #3a352f 38%, #1a1816 55%, #0b0b0b 100%); }   /* negro petróleo con reflejo aceitoso */
   .tank-can { width: 34px; height: 34px; margin-bottom: -6px; }
-  .tank-count { font-family: var(--font-display); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .tank-count { font-family: var(--font-display); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); width: 100%; text-align: center; white-space: nowrap; }
   .tank-lbl { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.05em; color: var(--ink); }
   .tank-ico { display: flex; color: var(--fuel); }
   #tank.flash .tank-fill { animation: tankFlash 0.45s ease-out; }
