@@ -371,7 +371,7 @@
 </div>
 <div id="levelTag" hidden></div>
 <div id="tank" class="panel" aria-live="polite" aria-label="Combustible">
-  <span class="tank-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="5" width="10" height="16" rx="2"/><rect x="10" y="2.5" width="4" height="2.5" rx="0.8" fill="currentColor"/><path d="M12.8 8.5 10 13h4l-2.8 4.5" stroke-linecap="round"/></svg></span>
+  <span class="tank-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5 7h11l3 3v10a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20z"/><path d="M8 7V4h5v3"/><path d="M8.5 11.5l6 6M14.5 11.5l-6 6"/></svg></span>
   <div class="tank-glass"><div class="tank-fill" id="tankFill"></div></div>
   <span class="tank-count" id="tankCount">0/0</span>
 </div>
@@ -990,39 +990,31 @@
   // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
   const randomGreen = () => theme.greens[Math.floor(Math.random() * theme.greens.length)];
 
-  // Celda de combustible: pila de cristal azul con núcleo brillante, rayo, tapas metálicas y franjas de luz
-  const boltShape = new THREE.Shape();
-  boltShape.moveTo(0.02, 0.09); boltShape.lineTo(-0.035, -0.005); boltShape.lineTo(0.004, -0.005);
-  boltShape.lineTo(-0.02, -0.09); boltShape.lineTo(0.04, 0.015); boltShape.lineTo(0.0, 0.015); boltShape.closePath();
-  const CG = {
-    glass: new THREE.CylinderGeometry(0.1, 0.1, 0.22, 20),
-    core: new THREE.CylinderGeometry(0.06, 0.06, 0.2, 14),
-    cap: new THREE.CylinderGeometry(0.118, 0.11, 0.05, 20),
-    ring: new THREE.CylinderGeometry(0.122, 0.122, 0.018, 20),
-    band: new THREE.CylinderGeometry(0.105, 0.105, 0.012, 20),
-    tip: new THREE.CylinderGeometry(0.05, 0.055, 0.035, 14),
-    bolt: new THREE.ShapeGeometry(boltShape),
-    clamp: new THREE.BoxGeometry(0.03, 0.27, 0.03),
+  // Bidón de combustible rojo: cuerpo con la "X" en relieve, asa triple, tapón y costuras
+  const JG = {
+    body: new THREE.BoxGeometry(0.2, 0.25, 0.12),
+    seam: new THREE.BoxGeometry(0.206, 0.012, 0.126),
+    rib: new THREE.BoxGeometry(0.022, 0.2, 0.012),
+    handle: new THREE.BoxGeometry(0.13, 0.022, 0.03),
+    post: new THREE.BoxGeometry(0.02, 0.05, 0.03),
+    neck: new THREE.CylinderGeometry(0.026, 0.03, 0.035, 12),
+    capg: new THREE.CylinderGeometry(0.034, 0.034, 0.03, 12),
   };
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x5cb8ff, emissive: 0x1a6fd0, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 });
-  const coreMat = new THREE.MeshBasicMaterial({ color: 0x9fdcff });
-  const capMat = new THREE.MeshStandardMaterial({ color: 0xc9d1d8, metalness: 0.6, roughness: 0.3 });
-  const ringMat = new THREE.MeshStandardMaterial({ color: 0x2b3138, metalness: 0.4, roughness: 0.5 });
-  const bandMat = new THREE.MeshBasicMaterial({ color: 0x4fc3ff });
-  const boltMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  const canMat = new THREE.MeshStandardMaterial({ color: 0xd8322a, emissive: 0x5a0a06, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0.1 });
+  const canDark = new THREE.MeshStandardMaterial({ color: 0xa82219, roughness: 0.5 });
+  const canLight = new THREE.MeshStandardMaterial({ color: 0xee5a4f, roughness: 0.4 });
+  const capBlack = new THREE.MeshStandardMaterial({ color: 0x222428, roughness: 0.6 });
   function makeCell() {
-    const m = new THREE.Mesh(CG.glass, glassMat.clone());   // la raíz pulsa (emissive)
-    const add = (geo, mat, y, extra) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; if (extra) extra(o); m.add(o); return o; };
-    add(CG.core, coreMat, 0);
-    for (const sg of [1, -1]) {
-      add(CG.cap, capMat, sg * 0.13, o => { if (sg < 0) o.rotation.x = Math.PI; });
-      add(CG.ring, ringMat, sg * 0.105);
-      add(CG.band, bandMat, sg * 0.155);
-    }
-    add(CG.tip, capMat, 0.172);
-    for (const a of [0, Math.PI]) add(CG.bolt, boltMat, 0, o => { o.rotation.y = a; o.position.set(Math.sin(a) * 0.102, 0, Math.cos(a) * 0.102); });
-    for (const a of [Math.PI / 2, -Math.PI / 2]) add(CG.clamp, capMat, 0, o => { o.position.set(Math.sin(a) * 0.105, 0, Math.cos(a) * 0.105); });
-    m.rotation.z = 0.25;
+    const m = new THREE.Mesh(JG.body, canMat.clone());   // la raíz pulsa (emissive)
+    const add = (geo, mat, x, y, z, rz = 0, ry = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.z = rz; o.rotation.y = ry; m.add(o); return o; };
+    for (const y of [-0.105, 0.105]) add(JG.seam, canLight, 0, y, 0);                       // costuras arriba y abajo
+    for (const z of [-0.064, 0.064]) for (const rz of [0.62, -0.62]) add(JG.rib, canDark, 0, -0.005, z, rz);   // la X de cada cara
+    add(JG.handle, canDark, -0.02, 0.16, 0);                                                // asa
+    for (const x of [-0.075, 0.035]) add(JG.post, canDark, x, 0.14, 0);
+    add(JG.post, canDark, -0.02, 0.14, 0);
+    add(JG.neck, canDark, 0.07, 0.14, 0, -0.5);                                             // boca y tapón negro
+    add(JG.capg, capBlack, 0.084, 0.162, 0, -0.5);
+    m.rotation.z = 0.12;
     return m;
   }
 
@@ -1235,20 +1227,37 @@
     }
     add(B(0.035, 0.035, 0.03), 0xf3bf98, 0, 0.495, -0.152, false);
     add(B(0.07, 0.014, 0.012), 0x8a3b2e, 0, 0.445, -0.142, false);
-    // pelo por detrás y gorra con visera y botón
-    add(B(0.31, 0.12, 0.05), 0x5a3a24, 0, 0.6, 0.13, false);
-    add(B(0.34, 0.08, 0.32), 0x3b6ea5, 0, 0.67, 0.01);
-    add(B(0.32, 0.03, 0.13), 0x2f5a88, 0, 0.64, -0.2);
-    add(B(0.05, 0.03, 0.05), 0xf2c14e, 0, 0.72, 0.01, false);
-    add(B(0.345, 0.02, 0.325), 0x2f5a88, 0, 0.64, 0.01, false);
+    // Casco de aviador de cuero (orejeras, nuca, costura y correas) con las gafas subidas sobre el casco
+    const LEATHER = 0x7a4a2a, LEATHER_D = 0x5e381f, LEATHER_L = 0x93603a;
+    add(B(0.33, 0.1, 0.31), LEATHER, 0, 0.66, 0);
+    add(B(0.335, 0.04, 0.025), LEATHER_D, 0, 0.612, -0.153, false);
+    for (const sg of [-1, 1]) {
+      add(B(0.028, 0.18, 0.16), LEATHER, sg * 0.163, 0.53, 0.01);
+      add(B(0.03, 0.05, 0.05), LEATHER_D, sg * 0.165, 0.5, -0.02, false);
+      add(B(0.02, 0.11, 0.02), LEATHER_D, sg * 0.155, 0.415, -0.05, false);
+    }
+    add(B(0.33, 0.17, 0.028), LEATHER, 0, 0.56, 0.152);
+    add(B(0.022, 0.014, 0.315), LEATHER_L, 0, 0.714, 0, false);
+    // gafas: correa alrededor del casco, montura dorada, cristales y puente
+    add(B(0.338, 0.032, 0.318), 0x3a2a20, 0, 0.665, 0, false);
+    const brass = new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.7, roughness: 0.3 });
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ef, emissive: 0x2a6f8f, emissiveIntensity: 0.35, metalness: 0.3, roughness: 0.1 });
+    for (const x of [-0.068, 0.068]) {
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 16), brass);
+      rim.rotation.x = Math.PI / 2; rim.position.set(x, 0.675, -0.165); body.add(rim);
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.032, 16), lensMat);
+      lens.rotation.x = Math.PI / 2; lens.position.set(x, 0.675, -0.168); body.add(lens);
+      add(B(0.014, 0.014, 0.006), 0xffffff, x + 0.015, 0.69, -0.185, false);
+    }
+    const bridge = new THREE.Mesh(B(0.04, 0.014, 0.016), brass); bridge.position.set(0, 0.675, -0.17); body.add(bridge);
     // Mochila cohete en la espalda (la cara mira a -z, la espalda a +z): placa, dos depósitos, franja y aletas
     const metal = new THREE.MeshStandardMaterial({ color: 0x8d969e, metalness: 0.5, roughness: 0.4 });
     const plate = new THREE.Mesh(B(0.26, 0.26, 0.04), metal); plate.position.set(0, 0.27, 0.15); plate.castShadow = true; body.add(plate);
     for (const x of [-0.07, 0.07]) {
       const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.26, 14), metal); tank.position.set(x, 0.25, 0.21); tank.castShadow = true; body.add(tank);
       const dome = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), metal); dome.position.set(x, 0.38, 0.21); body.add(dome);
-      add(new THREE.CylinderGeometry(0.057, 0.057, 0.03, 14), 0x3b6ea5, x, 0.31, 0.21, false);
-      add(B(0.015, 0.08, 0.06), 0x3b6ea5, x * 2.2, 0.16, 0.22, false);
+      add(new THREE.CylinderGeometry(0.057, 0.057, 0.03, 14), 0x7a4a2a, x, 0.31, 0.21, false);
+      add(B(0.015, 0.08, 0.06), 0x7a4a2a, x * 2.2, 0.16, 0.22, false);
     }
     add(B(0.05, 0.05, 0.02), 0x4fc3ff, 0, 0.32, 0.272, false);
     const flames = new THREE.Group(); flames.visible = false;
