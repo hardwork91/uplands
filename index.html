@@ -341,6 +341,12 @@
   @keyframes fuelPop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
     30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70%); } }
   @media (max-width: 520px) { .tank-glass { height: 140px; } #tank { top: 58%; padding: 10px 8px; } }
+  /* Selector temporal de estilo del indicador de pasos (para comparar) */
+  body:not([data-screen="game"]) #passPick { display: none !important; }
+  #passPick { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 10px; padding: 6px 10px; font-family: var(--font-display); font-size: 11px; max-width: calc(100% - 32px); }
+  #passPick .seg button { padding: 7px 10px; font-size: 11px; }
+  #passPick .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
@@ -380,6 +386,10 @@
   <span class="tank-count" id="tankCount">0/0</span>
 </div>
 <div id="fuelFull" hidden></div>
+<div id="passPick" class="panel" aria-label="Indicador de pasos">
+  <span>Pasos</span>
+  <div class="seg"><button data-ps="layers">Capas</button><button data-ps="cracks">Grietas</button><button data-ps="material">Material</button><button data-ps="marks">Marcas</button></div>
+</div>
 <div id="handTip" hidden></div>
 
 <div id="splash" class="screen"><h1 class="logo">UPLANDS</h1></div>
@@ -1022,6 +1032,66 @@
     return m;
   }
 
+  // ---------- Indicador de pasos que le quedan a una casilla (sin números) ----------
+  // 4 estilos para comparar: capas, grietas, materiales y marcas. Se cambia con el selector o la tecla I.
+  const PASS_STYLES = ['layers', 'cracks', 'material', 'marks'];
+  const PASS_GEO = { band: new THREE.BoxGeometry(1.02, 0.08, 1.02), crack: new THREE.BoxGeometry(1, 0.012, 0.014), post: new THREE.BoxGeometry(0.09, 0.2, 0.09), cap: new THREE.ConeGeometry(0.07, 0.07, 4) };
+  const passStyle = () => (typeof settings !== 'undefined' && PASS_STYLES.includes(settings.passStyle)) ? settings.passStyle : 'layers';
+  const showsPasses = c => c.kind === 'normal' || c.kind === 'lock' || c.kind === 'key' || c.kind === 'portal';
+  function buildPassFx(c) {
+    const g = c.group; if (!g) return;
+    if (c.passFx) { g.remove(c.passFx); c.passFx = null; }
+    if (c.top && c.top.userData.baseColor !== undefined) c.top.material.color.setHex(c.top.userData.baseColor);
+    if (!showsPasses(c)) return;
+    const passes = c.passes ?? 1, extra = Math.max(0, passes - 1);
+    const fx = new THREE.Group(); c.passFx = fx; g.add(fx);
+    const style = passStyle();
+    const rnd = rngFor(c.key + ':pass');
+    const grass = c.base === 'lock' ? 0x9a9da0 : (c.green || 0x86c95a);
+    if (style === 'layers') {
+      // A) capas: una losa de hierba apilada encima por cada paso de más, cada una más pequeña (pirámide escalonada)
+      for (let k = 1; k <= extra; k++) {
+        const w = 0.86 - (k - 1) * 0.16;
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, w), lam(k % 2 ? shade(grass, 1.06) : shade(grass, 0.94)));
+        slab.position.y = 0.025 + (k - 1) * 0.05; slab.castShadow = true; slab.receiveShadow = true; fx.add(slab);
+      }
+    } else if (style === 'cracks') {
+      // B) grietas: cuantos menos pasos quedan, más agrietada (1 paso = muy agrietada)
+      const sets = Math.max(0, 3 - passes);
+      for (let k = 0; k < sets * 3; k++) {
+        const cr = new THREE.Mesh(PASS_GEO.crack, new THREE.MeshBasicMaterial({ color: 0x3b2a1c }));
+        cr.position.set(-0.3 + rnd() * 0.6, 0.008, -0.3 + rnd() * 0.6); cr.rotation.y = rnd() * Math.PI;
+        cr.scale.x = 0.15 + rnd() * 0.25; fx.add(cr);
+      }
+    } else if (style === 'material') {
+      // C) materiales: piedra (3+), tierra (2), hierba (1)
+      if (c.top && c.base !== 'lock') {
+        if (c.top.userData.baseColor === undefined) c.top.userData.baseColor = c.top.material.color.getHex();
+        if (passes >= 3) c.top.material.color.setHex(0xa7a39b);
+        else if (passes === 2) c.top.material.color.setHex(0xb98d5f);
+      }
+    } else if (style === 'marks') {
+      // D) marcas: un poste de piedra en el borde delantero por cada paso de más
+      for (let k = 0; k < extra; k++) {
+        const x = 0.39, z = 0.39 - k * 0.16;
+        const post = new THREE.Mesh(PASS_GEO.post, lam(0xb3ada4)); post.position.set(x, 0.1, z); fx.add(post);
+        const cap = new THREE.Mesh(PASS_GEO.cap, lam(0x857e75)); cap.position.set(x, 0.235, z); cap.rotation.y = Math.PI / 4; fx.add(cap);
+      }
+    }
+  }
+  // Al entrar en una casilla se gasta un paso; en "capas" y "marcas" la pieza gastada cae
+  function usePass(c) {
+    const before = c.passes ?? 1;
+    c.passes = Math.max(0, before - 1);
+    const style = passStyle();
+    if (before >= 2 && (style === 'layers' || style === 'marks') && c.passFx && c.passFx.children.length) {
+      const piece = style === 'layers' ? c.passFx.children.slice(-1) : c.passFx.children.slice(-2);
+      for (const m of piece) { const w = m.getWorldPosition(new THREE.Vector3()); world.attach(m); dropObject(m); }
+      Snd.sfx.fall();
+    }
+    buildPassFx(c);
+  }
+
   // Detalle de cada casilla, siempre igual para la misma casilla
   function decorateTile(g, cell, top) {
     const rnd = rngFor(cell.key + ':' + (cell.base || cell.kind));
@@ -1106,6 +1176,8 @@
       g.add(m);
     }
     decorateTile(g, cell, top);
+    cell.group = g;
+    buildPassFx(cell);
     if (cell.kind === 'oneway') {
       const holder = new THREE.Group();
       const a = new THREE.Mesh(G.arrow, new THREE.MeshBasicMaterial({ color: 0x8a6b3a, transparent: true }));
@@ -1375,14 +1447,15 @@
     remaining = 0;
     grid.forEach((row, z) => row.forEach((t, x) => {
       if (t === '.') return;
-      const c = { key: key(x, z), x, z, kind: 'normal', coins: 0 };
-      if (t === 'S') pos = [x, z];
-      else if (/^\d$/.test(t)) c.coins = +t;
+      // passes = veces que se puede entrar antes de que caiga; coins = bidón (0 o 1)
+      const c = { key: key(x, z), x, z, kind: 'normal', coins: 0, passes: 1 };
+      if (t === 'S') { pos = [x, z]; c.passes = 0; }
+      else if (/^\d$/.test(t)) { c.passes = +t; c.coins = +t > 0 ? 1 : 0; }
       else if (ARROW[t]) { c.kind = 'oneway'; c.dir = ARROW[t]; }
       else if (/^[a-z]$/.test(t)) { c.kind = 'portal'; c.color = t; }
       else if (t === '+') c.kind = 'ice';
       else if (/^K\d$/.test(t)) { c.kind = 'key'; c.color = t[1]; }
-      else if (/^L\d(:\d)?$/.test(t)) { c.kind = 'lock'; c.color = t[1]; c.coins = t[3] ? +t[3] : 1; }
+      else if (/^L\d(:\d)?$/.test(t)) { c.kind = 'lock'; c.color = t[1]; c.passes = t[3] ? +t[3] : 1; c.coins = 1; }
       c.base = c.kind; c.green = randomGreen();
       remaining += c.coins;
       cells[c.key] = c;
@@ -1533,7 +1606,7 @@
     ices.forEach(c => delete cells[c.key]);
 
     // La casilla que dejas se cae si ya no tiene gemas
-    if (cur.coins === 0) { delete cells[cur.key]; dropObject(cur.group); Snd.sfx.fall(); }
+    if (cur.passes <= 0) { delete cells[cur.key]; dropObject(cur.group); Snd.sfx.fall(); }
 
     phase = 'moving';
     player.rotation.y = YAW[d];
@@ -1566,6 +1639,7 @@
         if (target.kind === 'portal') enterPortal(target);
         else {
           target.group.attach(player); player.position.set(0, 0, 0);
+          usePass(target);
           if (target.kind === 'oneway') openOneway(target);
           if (target.kind === 'key') useKey(target);
           collect(target); afterMove();
@@ -1637,7 +1711,7 @@
     {
       delete cells[p.key]; dropObject(p.group);
       // Salida: sale disparado del otro portal, que se queda como casilla normal sin gemas
-      other.kind = 'normal';
+      other.kind = 'normal'; other.passes = 0;
       const fx = other.portalFx;
       tween(0.35, k => fx.scale.setScalar(1 - k), () => other.group.remove(fx));
       other.group.attach(player); player.position.set(0, -0.3, 0);
@@ -1832,7 +1906,7 @@
     history.push({
       pos: pos.slice(), remaining, timersOn, timeLeft,
       cells: Object.values(cells).map(c => ({
-        key: c.key, x: c.x, z: c.z, kind: c.kind, base: c.base, coins: c.coins, dir: c.dir, color: c.color, pair: c.pair,
+        key: c.key, x: c.x, z: c.z, kind: c.kind, base: c.base, coins: c.coins, passes: c.passes, dir: c.dir, color: c.color, pair: c.pair,
         green: c.green, bobAmp: c.bobAmp, bobSpeed: c.bobSpeed, bobPhase: c.bobPhase,
         star: c.star ? { time: c.star.time, left: c.star.left, idx: c.star.idx } : null,
       })),
@@ -1917,7 +1991,7 @@
   // Simula las mismas reglas del juego sobre una copia del estado actual.
   function snapshot() {
     const s = {};
-    for (const c of Object.values(cells)) s[c.key] = { kind: c.kind, coins: c.coins, dir: c.dir, pair: c.pair, color: c.color };
+    for (const c of Object.values(cells)) s[c.key] = { kind: c.kind, coins: c.coins, passes: c.passes, dir: c.dir, pair: c.pair, color: c.color };
     return s;
   }
   function step(s, p, d) {
@@ -1926,11 +2000,12 @@
     if (!res || res.fall) return null;
     const tk = res.dest, t = s[tk], first = res.ices[0] || tk;
     const n = { ...s };
-    if (n[p].coins === 0) delete n[p];
+    if (n[p].passes <= 0) delete n[p];
     res.ices.forEach(k => delete n[k]);
-    if (t.kind === 'portal') { delete n[tk]; n[t.pair] = { kind: 'normal', coins: 0 }; return [n, t.pair, first]; }
+    if (t.kind === 'portal') { delete n[tk]; n[t.pair] = { kind: 'normal', coins: 0, passes: 0 }; return [n, t.pair, first]; }
     const t2 = { ...t, kind: 'normal' };
     if (t2.coins > 0) t2.coins--;
+    t2.passes = Math.max(0, (t2.passes ?? 1) - 1);
     n[tk] = t2;
     if (t.kind === 'key') for (const k in n) if (n[k].kind === 'lock' && n[k].color === t.color) n[k] = { ...n[k], kind: 'normal' };
     return [n, tk, first];
@@ -1939,7 +2014,7 @@
     let rem = 0;
     for (const k in s) rem += s[k].coins;
     if (rem === 0) return true;
-    const sig = p + '|' + Object.keys(s).sort().map(k => k + ':' + s[k].coins + s[k].kind[0]).join(';');
+    const sig = p + '|' + Object.keys(s).sort().map(k => k + ':' + s[k].coins + '.' + s[k].passes + s[k].kind[0]).join(';');
     if (memo.has(sig)) return memo.get(sig);
     if (--budget.n < 0) return false;
     let ok = false;
@@ -2026,6 +2101,7 @@
     if (e.key === 'u' || e.key === 'U') undo();
     if (e.key === 'l' || e.key === 'L') activateSlow();
     if (e.key === 'm' || e.key === 'M') Snd.toggleMute();
+    if (e.key === 'i' || e.key === 'I') setPassStyle(PASS_STYLES[(PASS_STYLES.indexOf(passStyle()) + 1) % PASS_STYLES.length]);
   });
   $('hintBtn').addEventListener('click', showHint);
   $('undoBtn').addEventListener('click', undo);
@@ -2258,7 +2334,7 @@
     cam.top = half; cam.bottom = -half; cam.left = -half * aspect; cam.right = half * aspect; cam.updateProjectionMatrix();
     // Casillas en fila a lo largo del eje x (en pantalla, de arriba-izquierda a abajo-derecha)
     const tile = (x, cell) => {
-      const c = Object.assign({ key: 'demo' + x, kind: 'normal', coins: 0, green: 0x86c95a }, cell);
+      const c = Object.assign({ key: 'demo' + x, kind: 'normal', coins: 0, passes: 1, green: 0x86c95a }, cell);
       c.base = c.base || c.kind;
       c.group = makeTile(c); c.group.position.set(x, 0, 0); sc.add(c.group);
       return c;
@@ -2703,6 +2779,13 @@
   }
   applyI18n();
   renderCoins();
+  function setPassStyle(st) {
+    settings.passStyle = st; saveSettings();
+    document.querySelectorAll('#passPick button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ps === st)));
+    for (const c of Object.values(cells)) buildPassFx(c);
+  }
+  document.querySelectorAll('#passPick button').forEach(b => b.addEventListener('click', () => setPassStyle(b.dataset.ps)));
+  setPassStyle(passStyle());
   // Icono del tanque: el mismo bidón del juego, renderizado una vez a una imagen
   (function renderCanIcon() {
     try {
