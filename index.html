@@ -1466,25 +1466,27 @@
     const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
     prog.paid[L] = Math.max(prev || 0, got);
     addCoins(earned);
-    tween(0.9, () => {}, () => {
-      // El jugador se agacha, enciende la mochila y despega recto como un cohete;
-      // los bloques caen sin él, y en el siguiente nivel llegará desde el cielo
-      const body = player.userData.body;
-      tween(0.2, k => body.scale.set(1 + 0.2 * k, 1 - 0.3 * k, 1 + 0.2 * k), () => {
-        scene.attach(player);
-        const y0 = player.position.y;
-        setFlames(true); spawnPuff(player.position.clone()); Snd.sfx.thrust(1.4);
-        for (const c of Object.values(cells)) dropObject(c.group);
-        cells = {};
-        tween(1.25, k => {
-          const e = Math.min(1, k * 3);
-          body.scale.set(1 - 0.15 * e, 1 + 0.35 * e, 1 - 0.15 * e);
-          player.position.y = y0 + 13 * Math.pow(k, 1.6);   // recto hacia arriba, acelerando
-        }, () => {
-          freshPlayer(); player.visible = false;
-          phase = 'done';
-          showResult(got, earned);
-        });
+    // El panel aparece con el jugador aún sobre la isla; el despegue llega al pulsar "Siguiente salto"
+    tween(1.1, () => {}, () => { phase = 'done'; showResult(got, earned); });
+  }
+
+  // Despegue: se agacha, enciende la mochila y sube recto como un cohete; los bloques caen sin él
+  function liftOff(then) {
+    phase = 'launching';
+    const body = player.userData.body;
+    tween(0.2, k => body.scale.set(1 + 0.2 * k, 1 - 0.3 * k, 1 + 0.2 * k), () => {
+      scene.attach(player);
+      const y0 = player.position.y;
+      setFlames(true); spawnPuff(player.position.clone()); Snd.sfx.thrust(1.4);
+      for (const c of Object.values(cells)) dropObject(c.group);
+      cells = {};
+      tween(1.25, k => {
+        const e = Math.min(1, k * 3);
+        body.scale.set(1 - 0.15 * e, 1 + 0.35 * e, 1 - 0.15 * e);
+        player.position.y = y0 + 13 * Math.pow(k, 1.6);   // recto hacia arriba, acelerando
+      }, () => {
+        freshPlayer(); player.visible = false;
+        then();
       });
     });
   }
@@ -2266,7 +2268,12 @@
   $('pExit').addEventListener('click', () => openMap(SLOTS[slotOfLevel(L)].wi));
   $('resLevels').addEventListener('click', () => openMap(SLOTS[slotOfLevel(L)].wi));
   $('resRetry').addEventListener('click', () => startLevel(L));
-  $('resNext').addEventListener('click', () => { const n = SLOTS[slotOfLevel(L) + 1]; if (n && n.lv !== null) startLevel(n.lv); });
+  $('resNext').addEventListener('click', () => {
+    const n = SLOTS[slotOfLevel(L) + 1];
+    if (!n || n.lv === null || phase !== 'done') return;
+    $('result').hidden = true;
+    liftOff(() => startLevel(n.lv));
+  });
   addEventListener('resize', () => { if (document.body.dataset.screen === 'map') scrollToWorld(mapWorld, false); });
 
   // ---------- Sonido: música zen generativa y efectos, todo sintetizado con Web Audio ----------
