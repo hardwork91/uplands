@@ -1078,14 +1078,14 @@
       }
       if (rnd() < 0.4) { const [cx, cz] = corners[Math.floor(rnd() * 4)]; d.add(DG.oct, 0x9c968f, cx * 0.9 - 0.06, 0.01, cz * 0.9, 0, r(0, 3), 0, 0.045, 0.025, 0.035); }
       // matices de color en la hierba
-      for (let i = 0; i < 4; i++) d.add(DG.box, shade(top, r(0.9, 1.08)), r(-0.36, 0.36), 0.0015, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.003, r(0.08, 0.18));
+      for (let i = 0; i < 4; i++) d.add(DG.box, shade(top, r(0.88, 1.1)), r(-0.36, 0.36), 0.006, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.012, r(0.08, 0.18));
     } else if (path) {
       // camino de tablones con juntas
-      for (const z of [-0.3, -0.1, 0.1, 0.3]) d.add(DG.box, 0xa58a5a, 0, 0.002, z + 0.095, 0, 0, 0, 0.9, 0.004, 0.012);
-      for (let i = 0; i < 6; i++) d.add(DG.box, 0x8d7448, r(-0.35, 0.35), 0.003, r(-0.4, 0.4), 0, 0, 0, 0.012, 0.004, 0.012);
+      for (const z of [-0.3, -0.1, 0.1, 0.3]) d.add(DG.box, 0xa58a5a, 0, 0.005, z + 0.095, 0, 0, 0, 0.9, 0.01, 0.014);
+      for (let i = 0; i < 6; i++) d.add(DG.box, 0x8d7448, r(-0.35, 0.35), 0.006, r(-0.4, 0.4), 0, 0, 0, 0.014, 0.012, 0.014);
     } else if (ice) {
       // grietas y cristales de escarcha
-      for (let i = 0; i < 5; i++) d.add(DG.box, 0x5fb0d8, r(-0.3, 0.3), 0.002, r(-0.3, 0.3), 0, r(0, 3), 0, r(0.12, 0.3), 0.004, 0.01);
+      for (let i = 0; i < 5; i++) d.add(DG.box, 0x5fb0d8, r(-0.3, 0.3), 0.005, r(-0.3, 0.3), 0, r(0, 3), 0, r(0.12, 0.3), 0.01, 0.012);
       for (let i = 0; i < 4; i++) d.add(DG.oct, 0xeefaff, [-0.38, 0.38][i % 2] + r(-0.04, 0.04), 0.03, [-0.38, 0.38][(i >> 1) % 2] + r(-0.04, 0.04), 0, r(0, 3), 0, 0.03, r(0.05, 0.09), 0.03);
     } else if (lock) {
       for (const x of [-0.38, 0.38]) for (const z of [-0.38, 0.38]) d.add(DG.cyl, 0x6f7377, x, 0.006, z, 0, 0, 0, 0.022, 0.012, 0.022);
