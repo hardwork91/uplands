@@ -729,11 +729,16 @@
   const clouds = [];
   for (let i = 0; i < 9; i++) {
     const c = new THREE.Group();
-    const n = 2 + (i % 3);
+    const n = 3 + (i % 3);
     for (let j = 0; j < n; j++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(1.2 + Math.random(), 0.5, 0.9 + Math.random() * 0.6), cloudMat);
-      b.position.set(j * 0.8, Math.random() * 0.3, Math.random() * 0.5);
-      c.add(b);
+      const w = 1 + Math.random() * 0.9, dd = 0.8 + Math.random() * 0.6;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45, dd), cloudMat);
+      b.position.set(j * 0.75, Math.random() * 0.2, Math.random() * 0.5); c.add(b);
+      // bultos encima y por debajo para que no parezcan cajas planas
+      const top = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3, dd * 0.6), cloudMat);
+      top.position.set(j * 0.75 + (Math.random() - 0.5) * 0.3, 0.35 + Math.random() * 0.1, b.position.z); c.add(top);
+      const low = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 0.2, dd * 0.7), cloudMat);
+      low.position.set(j * 0.75, -0.28, b.position.z + 0.05); c.add(low);
     }
     c.position.set(-12 + Math.random() * 24, -4 - Math.random() * 3, -10 + Math.random() * 20);
     c.userData.v = 0.15 + Math.random() * 0.25;
@@ -803,6 +808,50 @@
   G.arrow = new THREE.ShapeGeometry(arrowShape);
 
   const lam = c => new THREE.MeshLambertMaterial({ color: c });
+
+  // Azar estable por casilla (la decoración no cambia al deshacer ni al reiniciar)
+  function rngFor(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+    return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+  }
+  const shade = (hex, k) => new THREE.Color(hex).multiplyScalar(k).getHex();
+  // Decoración: muchas piezas pequeñas que se fusionan en una sola malla por color
+  // (mucho detalle con pocas llamadas de dibujo)
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3();
+  class Deco {
+    constructor() { this.parts = new Map(); }
+    add(geo, color, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) {
+      _m4.compose(_v.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz));
+      const g = geo.index ? geo.toNonIndexed() : geo.clone();
+      g.applyMatrix4(_m4);
+      if (!this.parts.has(color)) this.parts.set(color, []);
+      this.parts.get(color).push(g);
+    }
+    build(group, matFn = lam) {
+      for (const [color, list] of this.parts) {
+        let n = 0; for (const g of list) n += g.attributes.position.count;
+        const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+        let o = 0;
+        for (const g of list) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; g.dispose(); }
+        const bg = new THREE.BufferGeometry();
+        bg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        bg.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        const mesh = new THREE.Mesh(bg, matFn(color));
+        mesh.userData.merged = true; mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+    }
+  }
+  // Libera las geometrías fusionadas al quitar casillas de la escena
+  function disposeMerged(obj) { obj.traverse(o => { if (o.userData.merged) o.geometry.dispose(); }); }
+  const DG = {
+    box: new THREE.BoxGeometry(1, 1, 1),
+    cone4: new THREE.ConeGeometry(1, 1, 4),
+    cone6: new THREE.ConeGeometry(1, 1, 6),
+    cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
+    oct: new THREE.OctahedronGeometry(1, 0),
+  };
   const gemMat = new THREE.MeshStandardMaterial({ color: 0x4fd8f0, emissive: 0x0b6f8a, emissiveIntensity: 0.6, roughness: 0.25, metalness: 0.1, flatShading: true });
 
   const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -813,6 +862,8 @@
   const postMat = lam(0x3a3f45);
   const G_IPOST = new THREE.BoxGeometry(0.08, 0.34, 0.08), G_LAMP = new THREE.BoxGeometry(0.09, 0.05, 0.09);
   const G_PLANK = new THREE.BoxGeometry(0.84, 0.1, 0.04);
+  const G_FOOT = new THREE.BoxGeometry(0.14, 0.024, 0.14), G_HOUSE = new THREE.BoxGeometry(0.11, 0.03, 0.11), G_LID = new THREE.BoxGeometry(0.12, 0.02, 0.12);
+  const G_BOLT = new THREE.CylinderGeometry(0.014, 0.014, 0.012, 8), boltMat2 = new THREE.MeshStandardMaterial({ color: 0xbfc5ca, metalness: 0.7, roughness: 0.3 });
   const G_BTN_BASE = new THREE.CylinderGeometry(0.34, 0.36, 0.05, 32), G_BTN_CAP = new THREE.CylinderGeometry(0.25, 0.27, 0.1, 32);
   // Franjas diagonales del color del interruptor y negro (una textura por color, reutilizada)
   const stripeCache = {};
@@ -839,13 +890,18 @@
     x.beginPath(); x.moveTo(32, 0); x.lineTo(32, 64); x.moveTo(0, 32); x.lineTo(64, 32); x.stroke();
     return new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(cv) });
   })();
+  const G_POSTTIP = new THREE.ConeGeometry(0.052, 0.06, 4), G_NAIL = new THREE.BoxGeometry(0.014, 0.014, 0.01);
+  const nailMat = lam(0x5b5048), railDark = lam(0x7d5432);
   function makeRail(cap = railCap) {
     const r = new THREE.Group();
     for (const x of [-0.42, 0, 0.42]) {
       const p = new THREE.Mesh(G_POST, railMat); p.position.set(x, 0.15, -0.43); p.castShadow = true; r.add(p);
+      const tip = new THREE.Mesh(G_POSTTIP, cap); tip.position.set(x, 0.33, -0.43); tip.rotation.y = Math.PI / 4; r.add(tip);
+      for (const y of [0.27, 0.13]) { const n = new THREE.Mesh(G_NAIL, nailMat); n.position.set(x, y, -0.465); r.add(n); }
     }
     for (const [y, mat] of [[0.27, cap], [0.13, railMat]]) {
       const b = new THREE.Mesh(G_BAR, mat); b.position.set(0, y, -0.43); b.castShadow = true; r.add(b);
+      const grain = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.008, 0.062), railDark); grain.position.set(0, y + 0.012, -0.43); r.add(grain);
     }
     return r;
   }
@@ -894,6 +950,14 @@
     // Borde, fondo oscuro y dos capas de remolino girando en sentidos opuestos
     const rim = new THREE.Mesh(G.ring, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6 }));
     rim.rotation.x = Math.PI / 2; rim.position.y = 0.05; fx.add(rim);
+    const stoneMat = lam(0x8f8a84), runeMat = new THREE.MeshBasicMaterial({ color: col });
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4 + Math.PI / 8;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07 + (k % 2) * 0.03, 0.07), stoneMat);
+      st.position.set(Math.cos(a) * 0.39, 0.035, Math.sin(a) * 0.39); st.rotation.y = -a; fx.add(st);
+      const rn = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.005), runeMat);
+      rn.position.set(Math.cos(a) * 0.425, 0.04, Math.sin(a) * 0.425); rn.rotation.y = -a + Math.PI / 2; fx.add(rn);
+    }
     const deep = new THREE.Color(col).multiplyScalar(0.35);
     flat(G.disc, new THREE.MeshBasicMaterial({ color: deep, transparent: true, opacity: 0.9 }), 0.012);
     const s1 = flat(new THREE.CircleGeometry(0.29, 32), new THREE.MeshBasicMaterial({ map: SWIRL_TEX, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 0.02);
@@ -925,19 +989,108 @@
   // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
   const randomGreen = () => theme.greens[Math.floor(Math.random() * theme.greens.length)];
 
-  // Celda de combustible: una pila azul brillante con extremos metálicos
-  const G_CELL = new THREE.CylinderGeometry(0.11, 0.11, 0.26, 16);
-  const G_CAP = new THREE.CylinderGeometry(0.114, 0.114, 0.045, 16);
-  const G_TIP = new THREE.CylinderGeometry(0.045, 0.045, 0.05, 12);
-  const cellMat = new THREE.MeshStandardMaterial({ color: 0x5cb8ff, emissive: 0x1a6fd0, emissiveIntensity: 0.55, roughness: 0.35 });
-  const capMat = new THREE.MeshStandardMaterial({ color: 0xd7dde3, metalness: 0.6, roughness: 0.3 });
+  // Celda de combustible: pila de cristal azul con núcleo brillante, rayo, tapas metálicas y franjas de luz
+  const boltShape = new THREE.Shape();
+  boltShape.moveTo(0.02, 0.09); boltShape.lineTo(-0.035, -0.005); boltShape.lineTo(0.004, -0.005);
+  boltShape.lineTo(-0.02, -0.09); boltShape.lineTo(0.04, 0.015); boltShape.lineTo(0.0, 0.015); boltShape.closePath();
+  const CG = {
+    glass: new THREE.CylinderGeometry(0.1, 0.1, 0.22, 20),
+    core: new THREE.CylinderGeometry(0.06, 0.06, 0.2, 14),
+    cap: new THREE.CylinderGeometry(0.118, 0.11, 0.05, 20),
+    ring: new THREE.CylinderGeometry(0.122, 0.122, 0.018, 20),
+    band: new THREE.CylinderGeometry(0.105, 0.105, 0.012, 20),
+    tip: new THREE.CylinderGeometry(0.05, 0.055, 0.035, 14),
+    bolt: new THREE.ShapeGeometry(boltShape),
+    clamp: new THREE.BoxGeometry(0.03, 0.27, 0.03),
+  };
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x5cb8ff, emissive: 0x1a6fd0, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 });
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0x9fdcff });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xc9d1d8, metalness: 0.6, roughness: 0.3 });
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x2b3138, metalness: 0.4, roughness: 0.5 });
+  const bandMat = new THREE.MeshBasicMaterial({ color: 0x4fc3ff });
+  const boltMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   function makeCell() {
-    const m = new THREE.Mesh(G_CELL, cellMat.clone());
-    const top = new THREE.Mesh(G_CAP, capMat); top.position.y = 0.13;
-    const bot = new THREE.Mesh(G_CAP, capMat); bot.position.y = -0.13;
-    const tip = new THREE.Mesh(G_TIP, capMat); tip.position.y = 0.175;
-    m.add(top, bot, tip); m.rotation.z = 0.25;
+    const m = new THREE.Mesh(CG.glass, glassMat.clone());   // la raíz pulsa (emissive)
+    const add = (geo, mat, y, extra) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; if (extra) extra(o); m.add(o); return o; };
+    add(CG.core, coreMat, 0);
+    for (const sg of [1, -1]) {
+      add(CG.cap, capMat, sg * 0.13, o => { if (sg < 0) o.rotation.x = Math.PI; });
+      add(CG.ring, ringMat, sg * 0.105);
+      add(CG.band, bandMat, sg * 0.155);
+    }
+    add(CG.tip, capMat, 0.172);
+    for (const a of [0, Math.PI]) add(CG.bolt, boltMat, 0, o => { o.rotation.y = a; o.position.set(Math.sin(a) * 0.102, 0, Math.cos(a) * 0.102); });
+    for (const a of [Math.PI / 2, -Math.PI / 2]) add(CG.clamp, capMat, 0, o => { o.position.set(Math.sin(a) * 0.105, 0, Math.cos(a) * 0.105); });
+    m.rotation.z = 0.25;
     return m;
+  }
+
+  // Detalle de cada casilla, siempre igual para la misma casilla
+  function decorateTile(g, cell, top) {
+    const rnd = rngFor(cell.key + ':' + (cell.base || cell.kind));
+    const r = (a, b) => a + rnd() * (b - a);
+    const d = new Deco();
+    const ice = cell.kind === 'ice', lock = cell.base === 'lock', path = cell.kind === 'oneway';
+    const grassy = !ice && !lock && !path;
+    const topCol = lock ? 0x9a9da0 : top;
+    const lip = ice ? 0x7cc4e6 : lock ? 0x8a8d90 : path ? 0xb9a473 : shade(top, 0.78);
+    const dirt = ice ? 0x4fb0e6 : 0x8a5a3b, dirtLight = ice ? 0x6cc0ee : 0xa06d48, dirtDark = ice ? 0x3a93c8 : 0x6f4630;
+    const rock = ice ? 0x3d8cc4 : 0x6e5b4e, rockDark = ice ? 0x2f78ad : 0x5a4a3f;
+    // borde que sobresale bajo la superficie, y "goteo" por los lados
+    d.add(DG.box, lip, 0, -0.145, 0, 0, 0, 0, 0.985, 0.045, 0.985);
+    for (let i = 0; i < 10; i++) {
+      const side = Math.floor(rnd() * 4), t = r(-0.42, 0.42), h = r(0.04, ice ? 0.16 : 0.11), w = r(0.05, 0.13);
+      const [x, z] = [[t, -0.49], [0.49, t], [t, 0.49], [-0.49, t]][side];
+      if (ice) d.add(DG.cone4, 0xbfe8f7, x, -0.17 - h / 2, z, Math.PI, 0, 0, 0.025, h, 0.025);   // carámbanos
+      else d.add(DG.box, lip, x, -0.165 - h / 2, z, 0, side % 2 ? Math.PI / 2 : 0, 0, w, h, 0.03);
+    }
+    // vetas de la tierra y piedrecitas incrustadas
+    d.add(DG.box, dirtLight, 0, -0.29, 0, 0, 0, 0, 0.935, 0.045, 0.935);
+    d.add(DG.box, dirtDark, 0, -0.47, 0, 0, 0, 0, 0.93, 0.05, 0.93);
+    for (let i = 0; i < 7; i++) {
+      const side = Math.floor(rnd() * 4), t = r(-0.38, 0.38), y = r(-0.5, -0.2), sz = r(0.04, 0.08);
+      const [x, z] = [[t, -0.465], [0.465, t], [t, 0.465], [-0.465, t]][side];
+      d.add(DG.box, ice ? 0xdff4fc : 0x8f8a84, x, y, z, r(0, 1), r(0, 1), 0, sz, sz * 0.8, sz);
+    }
+    // raíz de roca con varios picos y raíces colgando
+    for (let i = 0; i < 3; i++) {
+      const rad = r(0.18, 0.32), h = r(0.35, 0.6), x = r(-0.28, 0.28), z = r(-0.28, 0.28);
+      d.add(DG.cone4, i % 2 ? rockDark : rock, x, -0.55 - h / 2, z, Math.PI, r(0, 1.5), 0, rad, h, rad);
+    }
+    if (!ice) for (let i = 0; i < 2; i++) {
+      const x = r(-0.35, 0.35), z = r(-0.35, 0.35), h = r(0.3, 0.55);
+      d.add(DG.cyl, 0x6b4a2f, x, -0.55 - h / 2, z, r(-0.3, 0.3), 0, r(-0.3, 0.3), 0.018, h, 0.018);
+    }
+    // superficie
+    if (grassy) {
+      const corners = [[-0.32, -0.32], [0.32, -0.32], [0.32, 0.32], [-0.32, 0.32]];
+      for (const [cx, cz] of corners) {
+        if (rnd() < 0.35) continue;
+        const x0 = cx + r(-0.06, 0.06), z0 = cz + r(-0.06, 0.06), tuft = shade(top, r(0.7, 0.9));
+        for (let b = 0; b < 4; b++) d.add(DG.box, tuft, x0 + r(-0.035, 0.035), 0.03, z0 + r(-0.035, 0.035), r(-0.35, 0.35), r(0, 3), r(-0.35, 0.35), 0.018, r(0.05, 0.1), 0.018);
+      }
+      if (rnd() < 0.45) {   // florecilla
+        const [cx, cz] = corners[Math.floor(rnd() * 4)], x = cx * 0.85, z = cz * 0.85 + 0.08;
+        const petal = [0xffffff, 0xffe27a, 0xff9fc2][Math.floor(rnd() * 3)];
+        d.add(DG.box, 0x4f8f2f, x, 0.03, z, 0, 0, 0, 0.012, 0.06, 0.012);
+        for (let k = 0; k < 4; k++) d.add(DG.box, petal, x + Math.cos(k * Math.PI / 2) * 0.02, 0.065, z + Math.sin(k * Math.PI / 2) * 0.02, 0, 0, 0, 0.022, 0.012, 0.022);
+        d.add(DG.box, 0xffc23a, x, 0.068, z, 0, 0, 0, 0.016, 0.014, 0.016);
+      }
+      if (rnd() < 0.4) { const [cx, cz] = corners[Math.floor(rnd() * 4)]; d.add(DG.oct, 0x9c968f, cx * 0.9 - 0.06, 0.01, cz * 0.9, 0, r(0, 3), 0, 0.045, 0.025, 0.035); }
+      // matices de color en la hierba
+      for (let i = 0; i < 4; i++) d.add(DG.box, shade(top, r(0.9, 1.08)), r(-0.36, 0.36), 0.0015, r(-0.36, 0.36), 0, 0, 0, r(0.08, 0.18), 0.003, r(0.08, 0.18));
+    } else if (path) {
+      // camino de tablones con juntas
+      for (const z of [-0.3, -0.1, 0.1, 0.3]) d.add(DG.box, 0xa58a5a, 0, 0.002, z + 0.095, 0, 0, 0, 0.9, 0.004, 0.012);
+      for (let i = 0; i < 6; i++) d.add(DG.box, 0x8d7448, r(-0.35, 0.35), 0.003, r(-0.4, 0.4), 0, 0, 0, 0.012, 0.004, 0.012);
+    } else if (ice) {
+      // grietas y cristales de escarcha
+      for (let i = 0; i < 5; i++) d.add(DG.box, 0x5fb0d8, r(-0.3, 0.3), 0.002, r(-0.3, 0.3), 0, r(0, 3), 0, r(0.12, 0.3), 0.004, 0.01);
+      for (let i = 0; i < 4; i++) d.add(DG.oct, 0xeefaff, [-0.38, 0.38][i % 2] + r(-0.04, 0.04), 0.03, [-0.38, 0.38][(i >> 1) % 2] + r(-0.04, 0.04), 0, r(0, 3), 0, 0.03, r(0.05, 0.09), 0.03);
+    } else if (lock) {
+      for (const x of [-0.38, 0.38]) for (const z of [-0.38, 0.38]) d.add(DG.cyl, 0x6f7377, x, 0.006, z, 0, 0, 0, 0.022, 0.012, 0.022);
+    }
+    d.build(g, ice ? (c => new THREE.MeshStandardMaterial({ color: c, emissive: shade(c, 0.25), roughness: 0.35, metalness: 0.1 })) : lam);
   }
 
   function makeTile(cell) {
@@ -959,6 +1112,7 @@
       if (geo === G.grass) cell.top = m;
       g.add(m);
     }
+    decorateTile(g, cell, top);
     if (cell.kind === 'oneway') {
       const holder = new THREE.Group();
       const a = new THREE.Mesh(G.arrow, new THREE.MeshBasicMaterial({ color: 0x8a6b3a, transparent: true }));
@@ -983,10 +1137,14 @@
         const r = new THREE.Group();
         for (const x of [-0.42, 0.42]) {
           const post = new THREE.Mesh(G_IPOST, postMat); post.position.set(x, 0.17, -0.43); post.castShadow = true; r.add(post);
-          const l = new THREE.Mesh(G_LAMP, lamp); l.position.set(x, 0.36, -0.43); r.add(l);
+          const foot = new THREE.Mesh(G_FOOT, postMat); foot.position.set(x, 0.012, -0.43); r.add(foot);
+          const house = new THREE.Mesh(G_HOUSE, postMat); house.position.set(x, 0.345, -0.43); r.add(house);
+          const l = new THREE.Mesh(G_LAMP, lamp); l.position.set(x, 0.375, -0.43); r.add(l);
+          const lid = new THREE.Mesh(G_LID, postMat); lid.position.set(x, 0.405, -0.43); r.add(lid);
         }
         for (const y of [0.25, 0.1]) {
           const bar = new THREE.Mesh(G_PLANK, stripeMat(col)); bar.position.set(0, y, -0.43); bar.castShadow = true; r.add(bar);
+          for (const bx of [-0.34, 0.34]) { const b = new THREE.Mesh(G_BOLT, boltMat2); b.position.set(bx, y, -0.452); b.rotation.x = Math.PI / 2; r.add(b); }
         }
         r.rotation.y = YAW[side]; rails.add(r);
       }
@@ -999,7 +1157,13 @@
       const cap = new THREE.Mesh(G_BTN_CAP, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.15, roughness: 0.4 }));
       cap.position.y = 0.09; cap.castShadow = true;
       if (cell.kind !== 'key') { cap.position.y = 0.03; cap.material.emissiveIntensity = 0.75; }  // ya pulsado
-      g.add(base, cap); cell.button = cap;
+      const bevel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.022, 8, 32), new THREE.MeshStandardMaterial({ color: 0x9aa1a8, metalness: 0.6, roughness: 0.35 }));
+      bevel.rotation.x = Math.PI / 2; bevel.position.y = 0.05;
+      const top2 = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.012, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.4) }));
+      top2.position.y = 0.056; cap.add(top2);
+      g.add(base, bevel, cap);
+      for (let k = 0; k < 6; k++) { const b = new THREE.Mesh(G_BOLT, boltMat2); b.position.set(Math.cos(k * Math.PI / 3) * 0.32, 0.055, Math.sin(k * Math.PI / 3) * 0.32); g.add(b); }
+      cell.button = cap;
     }
     if (cell.kind === 'ice') {
       // Reflejos sobre el hielo
@@ -1037,18 +1201,55 @@
   function makePlayer() {
     const p = new THREE.Group();
     const body = new THREE.Group(); p.add(body);
-    const add = (geo, color, x, y, z) => {
-      const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = true; body.add(m); return m;
+    const add = (geo, color, x, y, z, shadow = true) => {
+      const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = shadow; body.add(m); return m;
     };
-    add(new THREE.BoxGeometry(0.34, 0.34, 0.26), 0xff7a59, 0, 0.2, 0);
-    add(new THREE.BoxGeometry(0.3, 0.28, 0.28), 0xffd9b5, 0, 0.51, 0);
-    add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, -0.07, 0.53, -0.145);
-    add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, 0.07, 0.53, -0.145);
-    add(new THREE.BoxGeometry(0.34, 0.08, 0.32), 0x3b6ea5, 0, 0.67, 0.01);
-    // Mochila cohete en la espalda (la cara mira a -z, la espalda a +z)
+    const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+    // piernas y zapatos
+    for (const x of [-0.08, 0.08]) {
+      add(B(0.12, 0.11, 0.13), 0x34436a, x, 0.085, 0);
+      add(B(0.13, 0.05, 0.17), 0x4a3426, x, 0.025, -0.015);
+      add(B(0.13, 0.012, 0.17), 0xe9e2d6, x, 0.003, -0.015, false);
+    }
+    // torso, bajo de la camiseta, cinturón y hebilla
+    add(B(0.34, 0.22, 0.26), 0xff7a59, 0, 0.255, 0);
+    add(B(0.35, 0.035, 0.27), 0xe0613f, 0, 0.16, 0, false);
+    add(B(0.355, 0.035, 0.275), 0x3a2c24, 0, 0.14, 0, false);
+    add(B(0.06, 0.04, 0.02), 0xf2c14e, 0, 0.14, -0.14, false);
+    // correas de la mochila por delante
+    for (const x of [-0.1, 0.1]) add(B(0.045, 0.21, 0.02), 0x2f3a44, x, 0.27, -0.135, false);
+    // brazos (manga, brazo y mano)
+    for (const sg of [-1, 1]) {
+      add(B(0.09, 0.09, 0.12), 0xff7a59, sg * 0.215, 0.33, 0);
+      add(B(0.075, 0.12, 0.09), 0xffd9b5, sg * 0.215, 0.23, 0);
+      add(B(0.08, 0.06, 0.095), 0xf5c9a0, sg * 0.215, 0.15, -0.005);
+    }
+    // cabeza: cara, ojos con brillo, cejas, nariz, boca y mejillas
+    add(B(0.3, 0.28, 0.28), 0xffd9b5, 0, 0.51, 0);
+    for (const x of [-0.07, 0.07]) {
+      add(B(0.06, 0.07, 0.02), 0x1f3346, x, 0.53, -0.145, false);
+      add(B(0.02, 0.02, 0.01), 0xffffff, x + 0.012, 0.548, -0.156, false);
+      add(B(0.07, 0.015, 0.015), 0x6b4a33, x, 0.582, -0.146, false);
+      add(B(0.045, 0.025, 0.01), 0xff9f8a, x * 1.55, 0.475, -0.142, false);
+    }
+    add(B(0.035, 0.035, 0.03), 0xf3bf98, 0, 0.495, -0.152, false);
+    add(B(0.07, 0.014, 0.012), 0x8a3b2e, 0, 0.445, -0.142, false);
+    // pelo por detrás y gorra con visera y botón
+    add(B(0.31, 0.12, 0.05), 0x5a3a24, 0, 0.6, 0.13, false);
+    add(B(0.34, 0.08, 0.32), 0x3b6ea5, 0, 0.67, 0.01);
+    add(B(0.32, 0.03, 0.13), 0x2f5a88, 0, 0.64, -0.2);
+    add(B(0.05, 0.03, 0.05), 0xf2c14e, 0, 0.72, 0.01, false);
+    add(B(0.345, 0.02, 0.325), 0x2f5a88, 0, 0.64, 0.01, false);
+    // Mochila cohete en la espalda (la cara mira a -z, la espalda a +z): placa, dos depósitos, franja y aletas
     const metal = new THREE.MeshStandardMaterial({ color: 0x8d969e, metalness: 0.5, roughness: 0.4 });
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.12), metal); pack.position.set(0, 0.27, 0.19); pack.castShadow = true; body.add(pack);
-    add(new THREE.BoxGeometry(0.29, 0.05, 0.125), 0x3b6ea5, 0, 0.33, 0.19);
+    const plate = new THREE.Mesh(B(0.26, 0.26, 0.04), metal); plate.position.set(0, 0.27, 0.15); plate.castShadow = true; body.add(plate);
+    for (const x of [-0.07, 0.07]) {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.26, 14), metal); tank.position.set(x, 0.25, 0.21); tank.castShadow = true; body.add(tank);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), metal); dome.position.set(x, 0.38, 0.21); body.add(dome);
+      add(new THREE.CylinderGeometry(0.057, 0.057, 0.03, 14), 0x3b6ea5, x, 0.31, 0.21, false);
+      add(B(0.015, 0.08, 0.06), 0x3b6ea5, x * 2.2, 0.16, 0.22, false);
+    }
+    add(B(0.05, 0.05, 0.02), 0x4fc3ff, 0, 0.32, 0.272, false);
     const flames = new THREE.Group(); flames.visible = false;
     for (const x of [-0.07, 0.07]) {
       const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.07, 10), new THREE.MeshStandardMaterial({ color: 0x4a5258, metalness: 0.6, roughness: 0.3 }));
@@ -1136,6 +1337,7 @@
     tweens.length = 0;
     if (player.parent !== scene) freshPlayer();
     player.scale.set(1, 1, 1);
+    world.children.forEach(disposeMerged);
     while (world.children.length) world.remove(world.children[0]);
     rippleT = -1;
     cells = {}; hideBanner(); queued = null;
@@ -1634,7 +1836,7 @@
   function restoreState(snap) {
     Snd.sfx.undo();
     hideBanner(); queued = null;
-    for (const c of Object.values(cells)) if (c.outer && c.outer.parent) c.outer.parent.remove(c.outer);
+    for (const c of Object.values(cells)) if (c.outer && c.outer.parent) { disposeMerged(c.outer); c.outer.parent.remove(c.outer); }
     const facing = player.rotation.y;
     freshPlayer();
     player.rotation.y = facing;   // al deshacer mantiene hacia dónde miraba
