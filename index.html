@@ -317,6 +317,29 @@
   .tbar .mstar.lost { color: var(--star-off); transform: translateX(-50%) scale(0.8); }
   #banner .tolevels { pointer-events: auto; display: block; margin: 8px auto 0; font-size: 14px; }
   @media (max-width: 520px) { .tbar { max-width: none; flex-basis: auto; padding: 24px 12px 10px; } }
+  /* Tanque de combustible: se llena de abajo arriba con cada celda */
+  body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull { display: none !important; }
+  #tank { position: fixed; z-index: 4; left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .tank-glass { position: relative; width: 40px; height: 210px; border-radius: 20px; background: rgba(255, 255, 255, 0.55);
+    border: 3px solid var(--ink); overflow: hidden; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .tank-glass::after { content: ""; position: absolute; top: 10px; bottom: 10px; left: 7px; width: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.7); }
+  .tank-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(180deg, #c8ff70, #6fcf34); transition: height 0.45s cubic-bezier(.3, 1.5, .5, 1); }
+  .tank-fill .wave { position: absolute; left: 0; top: -6px; width: 200%; height: 12px;
+    background: radial-gradient(ellipse at 50% 100%, #c8ff70 62%, transparent 64%) 0 0 / 20px 100% repeat-x; animation: wave 1.4s linear infinite; }
+  @keyframes wave { to { transform: translateX(-20px); } }
+  .tank-count { font-family: var(--font-display); font-size: 12px; padding: 4px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .tank-lbl { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.08em; color: var(--ink); opacity: 0.75; }
+  #tank.flash .tank-glass { animation: tankFlash 0.45s ease-out; }
+  @keyframes tankFlash { 0% { box-shadow: 0 0 0 0 rgba(170, 255, 90, 0.9); } 100% { box-shadow: 0 0 0 14px rgba(170, 255, 90, 0); } }
+  #tank.full .tank-glass { animation: tankFull 0.9s ease-out; }
+  @keyframes tankFull { 0% { transform: scale(1); } 30% { transform: scale(1.12); box-shadow: 0 0 30px 8px rgba(170, 255, 90, 0.8); } 100% { transform: scale(1); } }
+  #fuelFull { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; white-space: nowrap;
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 7vw, 46px); letter-spacing: 0.06em; color: #4a9a1c;
+    text-shadow: 0 3px 0 #fff, 0 0 18px rgba(170, 255, 90, 0.9); animation: fuelPop 1.8s ease-out both; }
+  @keyframes fuelPop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+    30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70%); } }
+  @media (max-width: 520px) { .tank-glass { width: 30px; height: 150px; } #tank { top: 58%; } }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
@@ -344,13 +367,17 @@
     <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl" data-i18n="slow">Lento</span><span class="cost"></span></button>
   </div>
   <div class="panel counter" aria-live="polite">
-    <small data-i18n="left">FALTAN</small>
-    <div id="count">0</div>
     <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
   </div>
   </div>
 </div>
 <div id="levelTag" hidden></div>
+<div id="tank" aria-live="polite">
+  <span class="tank-lbl" data-i18n="fuel">COMBUSTIBLE</span>
+  <div class="tank-glass"><div class="tank-fill" id="tankFill"><span class="wave"></span></div></div>
+  <span class="tank-count" id="tankCount">0/0</span>
+</div>
+<div id="fuelFull" hidden></div>
 <div id="handTip" hidden></div>
 
 <div id="splash" class="screen"><h1 class="logo">UPLANDS</h1></div>
@@ -489,7 +516,7 @@
       '. 2 > > .',
       '2 1 . . .',
       '2 a . . .'] },
-    { name: 'Interruptor', time: 32, hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay gemas.', rows: [
+    { name: 'Interruptor', time: 32, hint: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay celdas de combustible.', rows: [
       '1 1 L1:2 1 1',
       '1 . 1 . 1',
       'S 1 K1 1 1'] },
@@ -900,6 +927,21 @@
   // Tonos de hierba: cada bloque toma uno al azar cada vez que se carga o reinicia el nivel
   const randomGreen = () => theme.greens[Math.floor(Math.random() * theme.greens.length)];
 
+  // Celda de combustible: una pila verde lima brillante con extremos metálicos
+  const G_CELL = new THREE.CylinderGeometry(0.11, 0.11, 0.26, 16);
+  const G_CAP = new THREE.CylinderGeometry(0.114, 0.114, 0.045, 16);
+  const G_TIP = new THREE.CylinderGeometry(0.045, 0.045, 0.05, 12);
+  const cellMat = new THREE.MeshStandardMaterial({ color: 0x9cf05a, emissive: 0x4fbf1a, emissiveIntensity: 0.55, roughness: 0.35 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xd7dde3, metalness: 0.6, roughness: 0.3 });
+  function makeCell() {
+    const m = new THREE.Mesh(G_CELL, cellMat.clone());
+    const top = new THREE.Mesh(G_CAP, capMat); top.position.y = 0.13;
+    const bot = new THREE.Mesh(G_CAP, capMat); bot.position.y = -0.13;
+    const tip = new THREE.Mesh(G_TIP, capMat); tip.position.y = 0.175;
+    m.add(top, bot, tip); m.rotation.z = 0.25;
+    return m;
+  }
+
   function makeTile(cell) {
     const g = new THREE.Group();
     const top = cell.kind === 'oneway' ? 0xd8c79a : cell.kind === 'ice' ? 0xbfe8f7 : cell.base === 'lock' ? 0xffffff : (cell.green || randomGreen());
@@ -975,7 +1017,7 @@
     }
     cell.gems = [];
     for (let i = 0; i < cell.coins; i++) {
-      const gem = cell.star ? makeStarMesh() : new THREE.Mesh(G.gem, gemMat.clone());
+      const gem = makeCell();
       const r = cell.coins === 1 ? 0 : 0.2;
       const a = (i / cell.coins) * Math.PI * 2 + Math.PI / 4;
       gem.position.set(Math.cos(a) * r, 0.34, Math.sin(a) * r);
@@ -1005,11 +1047,42 @@
     add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, -0.07, 0.53, -0.145);
     add(new THREE.BoxGeometry(0.06, 0.07, 0.02), 0x1f3346, 0.07, 0.53, -0.145);
     add(new THREE.BoxGeometry(0.34, 0.08, 0.32), 0x3b6ea5, 0, 0.67, 0.01);
+    // Mochila cohete en la espalda (la cara mira a -z, la espalda a +z)
+    const metal = new THREE.MeshStandardMaterial({ color: 0x8d969e, metalness: 0.5, roughness: 0.4 });
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.12), metal); pack.position.set(0, 0.27, 0.19); pack.castShadow = true; body.add(pack);
+    add(new THREE.BoxGeometry(0.29, 0.05, 0.125), 0x3b6ea5, 0, 0.33, 0.19);
+    const flames = new THREE.Group(); flames.visible = false;
+    for (const x of [-0.07, 0.07]) {
+      const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.07, 10), new THREE.MeshStandardMaterial({ color: 0x4a5258, metalness: 0.6, roughness: 0.3 }));
+      nz.position.set(x, 0.09, 0.19); body.add(nz);
+      const outer = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.55, 12), new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.32, 10), new THREE.MeshBasicMaterial({ color: 0xfff3a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      outer.rotation.x = inner.rotation.x = Math.PI;   // apuntan hacia abajo
+      outer.position.set(x, -0.2, 0.19); inner.position.set(x, -0.1, 0.19);
+      flames.add(outer, inner);
+    }
+    body.add(flames);
+    p.userData.flames = flames;
     p.userData.body = body;
     return p;
   }
   let player = makePlayer();
   scene.add(player);
+  const setFlames = on => { player.userData.flames.visible = on; };
+  // Nube de humo en la base (aterrizaje y despegue)
+  const puffGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+  function spawnPuff(at) {
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.Mesh(puffGeo, new THREE.MeshLambertMaterial({ color: 0xf2f2f2, transparent: true, opacity: 0.9 }));
+      const a = (i / 12) * Math.PI * 2 + Math.random() * 0.4, sp = 0.5 + Math.random() * 0.4;
+      m.position.copy(at); m.position.y += 0.05; world.add(m);
+      tween(0.9, k => {
+        m.position.x = at.x + Math.cos(a) * sp * k; m.position.z = at.z + Math.sin(a) * sp * k;
+        m.position.y = at.y + 0.05 + 0.25 * k;
+        m.scale.setScalar(1 + k * 1.6); m.material.opacity = 0.9 * (1 - k);
+      }, () => world.remove(m));
+    }
+  }
   function freshPlayer() {
     if (player.parent) player.parent.remove(player);
     player = makePlayer(); scene.add(player);
@@ -1040,9 +1113,14 @@
     if (e.target.closest('.undo')) undo();
     if (e.target.closest('.tolevels')) openMap(SLOTS[slotOfLevel(L)].wi);
   });
+  let fuelTotal = 0;
   function setCount(n, pop) {
-    const el = $('count'); el.textContent = n;
-    if (pop) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    const got = fuelTotal - n;
+    $('tankFill').style.height = (fuelTotal ? got / fuelTotal * 100 : 0) + '%';
+    $('tankCount').textContent = `${got}/${fuelTotal}`;
+    const t = $('tank');
+    if (pop) { t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash'); }
+    t.classList.toggle('full', fuelTotal > 0 && n === 0);
   }
 
   function tween(dur, update, done) { tweens.push({ t: 0, dur, update, done }); }
@@ -1082,6 +1160,7 @@
       remaining += c.coins;
       cells[c.key] = c;
     }));
+    fuelTotal = remaining;
     for (const c of Object.values(cells)) if (c.kind === 'portal')
       c.pair = Object.values(cells).find(o => o !== c && o.kind === 'portal' && o.color === c.color).key;
 
@@ -1148,8 +1227,14 @@
       player.visible = true;
       player.scale.set(1, 1, 1);
       player.position.set(start.x, 9, start.z);
-      tween(0.55, k => { player.position.y = 9 * (1 - k * k); }, () => {
+      // Aterrizaje propulsado: baja rápido, frena con las toberas, flota un instante y se posa
+      setFlames(true); Snd.sfx.thrust(1.5);
+      tween(1.5, k => {
+        player.position.y = k < 0.75 ? 0.35 + 8.65 * Math.pow(1 - k / 0.75, 3) : 0.35 * (1 - (k - 0.75) / 0.25);
+      }, () => {
+        setFlames(false);
         const sc = cells[key(pos[0], pos[1])];
+        spawnPuff(toWorld(pos[0], pos[1]));
         sc.group.attach(player); player.position.set(0, 0, 0);
         rippleT = clock.elapsedTime; rippleO = pos.slice();
         levelReadyT = clock.elapsedTime;
@@ -1278,12 +1363,12 @@
     setCount(remaining, true);
     const gem = c.gems.pop();
     Snd.sfx.gem(remaining);
-    gem.material.transparent = true;
+    gem.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; } });
     const y0 = gem.position.y;
     tween(0.4, k => {
       gem.position.y = y0 + k * 0.8;
       gem.scale.setScalar(1 + k * 0.6);
-      gem.material.opacity = 1 - k;
+      gem.traverse(o => { if (o.material) o.material.opacity = 1 - k; });
     }, () => c.group.remove(gem));
     squash();
   }
@@ -1369,6 +1454,9 @@
   function win() {
     phase = 'won'; queued = null;
     Snd.sfx.win();
+    const ff = $('fuelFull'); ff.textContent = tr('fuelFull'); ff.hidden = false;
+    ff.style.animation = 'none'; void ff.offsetWidth; ff.style.animation = '';
+    clearTimeout(ff._h); ff._h = setTimeout(() => { ff.hidden = true; }, 1900);
     const got = starsNow();
     saveBest(L, got);
     if (got === 3) unlockAchievement('lightning');
@@ -1380,14 +1468,14 @@
     const earned = (prev === undefined ? COIN_CLEAR : 0) + COIN_STAR * Math.max(0, got - (prev || 0));
     prog.paid[L] = Math.max(prev || 0, got);
     addCoins(earned);
-    tween(0.45, () => {}, () => {
-      // El jugador se agacha, toma impulso y sale volando hacia arriba (estilo Superman);
+    tween(0.9, () => {}, () => {
+      // El jugador se agacha, enciende la mochila y despega recto como un cohete;
       // los bloques caen sin él, y en el siguiente nivel llegará desde el cielo
       const body = player.userData.body;
       tween(0.2, k => body.scale.set(1 + 0.2 * k, 1 - 0.3 * k, 1 + 0.2 * k), () => {
         scene.attach(player);
         const y0 = player.position.y;
-        Snd.sfx.portalOut();
+        setFlames(true); spawnPuff(player.position.clone()); Snd.sfx.thrust(1.4);
         for (const c of Object.values(cells)) dropObject(c.group);
         cells = {};
         tween(1.25, k => {
@@ -1755,7 +1843,7 @@
     es: {
       left: 'FALTAN', pause: 'Pausa', hint: 'Pista', undo: 'Deshacer', slow: 'Lento', play: 'Jugar', settings: 'Ajustes', achievements: 'Logros',
       home: '‹ Inicio', resume: 'Continuar', restart: '↺ Reiniciar', settingsBtn: '⚙ Ajustes', exitMap: 'Salir al mapa', levels: 'Niveles',
-      retry: '↺ Repetir', next: 'Siguiente', soonBtn: 'Pronto', cleared: '¡Superado!', allDone: '¡Has completado Uplands!', level: 'Nivel {n}', soon: 'pronto',
+      retry: '↺ Repetir', next: 'Siguiente salto', soonBtn: 'Pronto', cleared: 'Tanque lleno, listo para despegar', allDone: '¡Has completado Uplands!', level: 'Salto {n}', jumpDone: 'Salto {n} completado', fuelFull: '¡Tanque lleno!', fuel: 'COMBUSTIBLE', soon: 'pronto',
       unlockWorld: 'Termina {prev} para desbloquear {w}', cielo: 'Cielo', dunas: 'Dunas', escarcha: 'Escarcha',
       coinsPlus: '+{n} monedas', noCoins: 'Sin monedas nuevas: mejora tus estrellas', free: 'Gratis',
       needCoins: 'Te faltan monedas', costIs: '{what} cuesta {c}. Tienes {have}.', whatHint: 'Una pista', whatUndo: 'Deshacer', whatSlow: 'La cámara lenta',
@@ -1764,8 +1852,8 @@
       hintTitle: '✦ Pistas', hintP1: 'Has llegado a un cruce. Si no sabes por dónde seguir, pide una pista: se iluminan las casillas que todavía llevan a la solución.',
       hintCost: 'La primera es gratis. Después cuesta {c} monedas. Tienes {have}.',
       hintP2: 'Las monedas se ganan pasando niveles por primera vez, consiguiendo estrellas nuevas y con algún que otro secreto.', ok: 'Entendido',
-      undoTitle: '↶ Deshacer', undoP1: 'Con ese movimiento ya no puedes recoger todas las gemas.',
-      undoP2: 'Puedes deshacerlo y volver un paso atrás: las casillas caídas, las gemas y el tiempo vuelven a como estaban.',
+      undoTitle: '↶ Deshacer', undoP1: 'Con ese movimiento ya no puedes recoger todas las celdas de combustible.',
+      undoP2: 'Puedes deshacerlo y volver un paso atrás: las casillas caídas, las celdas y el tiempo vuelven a como estaban.',
       firstFree: 'La primera vez es gratis. Después cuesta {c} monedas.', keepGoing: 'Seguir así', undoFree: '↶ Deshacer gratis',
       slowTitle: '⏳ Cámara lenta', slowP1: 'Se te escapó una estrella.',
       slowP2: 'La cámara lenta hace que el mundo, y también la barra de tiempo, vayan a la mitad de velocidad durante {s} segundos. Tú te sigues moviendo igual de rápido.',
@@ -1778,12 +1866,12 @@
       m_oneway_t: '➜ Sentido único', m_oneway: 'Solo puedes entrar en esta casilla moviéndote en la dirección de la flecha. Las vallas bloquean los otros lados.',
       m_ice_t: '❄ Hielo', m_ice: 'Al pisar el hielo resbalas hasta la casilla siguiente. Se rompe al pasar, y si detrás hay un hueco, caes al vacío.',
       m_portal_t: '◎ Portales', m_portal: 'Entra en un portal y saldrás por el de su mismo color. Los dos desaparecen después.',
-      m_key_t: '● Interruptores', m_key: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay gemas.',
+      m_key_t: '● Interruptores', m_key: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay celdas de combustible.',
     },
     en: {
       left: 'LEFT', pause: 'Pause', hint: 'Hint', undo: 'Undo', slow: 'Slow', play: 'Play', settings: 'Settings', achievements: 'Achievements',
       home: '‹ Home', resume: 'Resume', restart: '↺ Restart', settingsBtn: '⚙ Settings', exitMap: 'Back to map', levels: 'Levels',
-      retry: '↺ Retry', next: 'Next', soonBtn: 'Soon', cleared: 'Cleared!', allDone: 'You completed Uplands!', level: 'Level {n}', soon: 'soon',
+      retry: '↺ Retry', next: 'Next jump', soonBtn: 'Soon', cleared: 'Tank full, ready for lift-off', allDone: 'You completed Uplands!', level: 'Jump {n}', jumpDone: 'Jump {n} complete', fuelFull: 'Tank full!', fuel: 'FUEL', soon: 'soon',
       unlockWorld: 'Finish {prev} to unlock {w}', cielo: 'Sky', dunas: 'Dunes', escarcha: 'Frost',
       coinsPlus: '+{n} coins', noCoins: 'No new coins: beat your star record', free: 'Free',
       needCoins: 'Not enough coins', costIs: '{what} costs {c}. You have {have}.', whatHint: 'A hint', whatUndo: 'Undo', whatSlow: 'Slow motion',
@@ -1792,8 +1880,8 @@
       hintTitle: '✦ Hints', hintP1: "You've reached a crossing. If you're not sure where to go, ask for a hint: the tiles that still lead to a solution light up.",
       hintCost: 'The first one is free. After that it costs {c} coins. You have {have}.',
       hintP2: 'You earn coins by clearing levels for the first time, getting new stars and finding the odd secret.', ok: 'Got it',
-      undoTitle: '↶ Undo', undoP1: 'After that move you can no longer collect every gem.',
-      undoP2: 'You can undo it and go back one step: fallen tiles, gems and time return to how they were.',
+      undoTitle: '↶ Undo', undoP1: 'After that move you can no longer collect every fuel cell.',
+      undoP2: 'You can undo it and go back one step: fallen tiles, cells and time return to how they were.',
       firstFree: 'The first time is free. After that it costs {c} coins.', keepGoing: 'Keep going', undoFree: '↶ Undo for free',
       slowTitle: '⏳ Slow motion', slowP1: 'A star slipped away.',
       slowP2: 'Slow motion makes the world, and the time bar, run at half speed for {s} seconds. You still move at full speed.',
@@ -1806,7 +1894,7 @@
       m_oneway_t: '➜ One way', m_oneway: 'You can only enter this tile moving in the direction of the arrow. The fences block the other sides.',
       m_ice_t: '❄ Ice', m_ice: 'Step on ice and you slide to the next tile. It breaks behind you, and if there is a gap after it, you fall into the void.',
       m_portal_t: '◎ Portals', m_portal: 'Enter a portal and you come out of the one with the same color. Both disappear afterwards.',
-      m_key_t: '● Switches', m_key: 'Barriers block the way. Step on the button of the same color to lower them. There are gems inside too.',
+      m_key_t: '● Switches', m_key: 'Barriers block the way. Step on the button of the same color to lower them. There are fuel cells inside too.',
     },
   };
   let settings = { music: 0.7, sfx: 0.7, vib: true, lang: (navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en' };
@@ -2140,7 +2228,7 @@
     const k = slotOfLevel(L), slot = SLOTS[k], nextSlot = SLOTS[k + 1];
     $('pause').hidden = true;
     setScreen('result');   // oculta la barra del juego detrás del panel
-    $('resTitle').textContent = tr('level', { n: slot.n });
+    $('resTitle').textContent = tr('jumpDone', { n: slot.n });
     const stars = $('resStars').children;
     for (const st of stars) st.className = '';
     $('resCoins').innerHTML = '';
@@ -2298,6 +2386,7 @@
       voidFall: () => tone(760, { to: 110, dur: 1.1, gain: 0.1 }),
       hint:     () => [0, 2, 4].forEach((d, i) => bell(freq(12 + d), 0.07, i * 0.06)),
       undo:     () => { noise({ f0: 220, f1: 2400, dur: 0.35, gain: 0.07 }); tone(420, { to: 260, dur: 0.3, gain: 0.08, type: 'triangle' }); },
+      thrust:   (d) => { noise({ f0: 260, f1: 110, dur: d, gain: 0.14, type: 'lowpass', q: 0.8 }); noise({ f0: 1800, f1: 900, dur: d * 0.8, gain: 0.03, type: 'bandpass' }); },
       slowOn:   () => tone(620, { to: 140, dur: 0.9, gain: 0.1 }),
       slowOff:  () => tone(140, { to: 620, dur: 0.5, gain: 0.08 }),
       coin:     () => { tone(1320, { dur: 0.07, gain: 0.07, type: 'square', lp: 3200 }); tone(1760, { dur: 0.25, gain: 0.07, type: 'square', lp: 3200, delay: 0.07 }); },
@@ -2349,6 +2438,7 @@
     const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
     wtime += wdt;
     tickBar(wdt);
+    if (player.userData.flames.visible) player.userData.flames.children.forEach(f => { f.scale.y = 0.75 + Math.random() * 0.55; });
     updateWeather(wdt, wtime);
     if (phase === 'idle' && !$('pause').hidden) phase = 'paused';
     if (pendingSlow && phase === 'idle') { pendingSlow = false; openSlowTutorial(); }
@@ -2366,7 +2456,10 @@
       }
     }
     for (const c of Object.values(cells)) {
-      for (const g of c.gems) { g.rotation.y += wdt * 1.6; g.position.y = 0.34 + Math.sin(wtime * 2.4 + g.userData.phase) * 0.04; }
+      for (const g of c.gems) {
+        g.rotation.y += wdt * 1.6; g.position.y = 0.34 + Math.sin(wtime * 2.4 + g.userData.phase) * 0.04;
+        if (g.material.emissive) g.material.emissiveIntensity = 0.45 + 0.25 * Math.sin(wtime * 3 + g.userData.phase);   // pulso de energía
+      }
       if (c.hintFx) { const k = 0.5 + Math.sin(time * 6) * 0.5; c.hintFx.children[0].material.opacity = 0.55 + k * 0.35; c.hintFx.children[1].material.opacity = 0.9; c.hintFx.position.y = 0.012 + k * 0.01; }
       if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
     }
