@@ -322,7 +322,8 @@
   @media (max-width: 520px) { .tbar { max-width: none; flex-basis: auto; padding: 24px 12px 10px; } }
   /* Tanque de combustible: se llena de abajo arriba con cada celda */
   body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull { display: none !important; }
-  #tank { position: fixed; z-index: 4; left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%);
+  /* esquina inferior derecha: fuera del centro, donde está el mapa */
+  #tank { position: fixed; z-index: 4; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 6px; pointer-events: none;
     width: 64px; box-sizing: border-box; }   /* ancho fijo: no cambia con los números */
   /* misma pista que la barra de tiempo, pero vertical */
@@ -342,7 +343,7 @@
     text-shadow: 0 3px 0 #fff, 0 0 18px rgba(120, 190, 255, 0.9); animation: fuelPop 1.8s ease-out both; }
   @keyframes fuelPop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
     30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70%); } }
-  @media (max-width: 520px) { .tank-glass { height: 140px; } #tank { top: 58%; padding: 10px 8px; } }
+  @media (max-width: 520px) { .tank-glass { height: 120px; } #tank { padding: 10px 8px; gap: 8px; } }
   /* ---------- Editor de mapas ---------- */
   #editor { background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 85%); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .ed-wrap { max-width: 980px; margin: 0 auto; box-sizing: border-box;
