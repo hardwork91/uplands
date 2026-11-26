@@ -1693,16 +1693,14 @@
       const live = () => (c.group ? c.group.getWorldPosition(tmpV) : tmpV.copy(toWorld(c.x, c.z)));
       const hop = i === 0;
       // Si el destino es un portal, ese mismo salto es la zambullida: sube en seno, cae dentro
-      // del remolino girando y encogiéndose, y el portal se encoge hasta desaparecer
+      // del remolino encogiéndose (sin giro; el giro es solo de salida), y el portal se encoge hasta desaparecer
       const dive = c.kind === 'portal' && i === stops.length - 1;
-      const rot0 = player.rotation.y;
       if (i === 0) { if (dive) Snd.sfx.portalIn(); else Snd.sfx.hop(); if (c.kind === 'ice') Snd.sfx.slide(0.2 + (stops.length - 1) * 0.12); }
       tween(dive ? 0.45 : hop ? 0.17 : 0.12, k => {
         player.position.lerpVectors(from, live(), dive ? Math.min(1, k * 1.6) : k);
         if (dive) {
           player.position.y += 0.42 * Math.sin(Math.PI * 1.35 * k);
           player.scale.setScalar(k < 0.5 ? 1 : 1 - ((k - 0.5) / 0.5) * 0.92);
-          player.rotation.y = rot0 + k * Math.PI * 2;
           c.portalFx.scale.setScalar(k < 0.45 ? 1 : Math.max(0.001, 1 - (k - 0.45) / 0.55));
         } else if (hop) player.position.y += Math.sin(k * Math.PI) * (c.kind === 'ice' ? 0.18 : 0.32);
       }, () => {
@@ -2453,7 +2451,7 @@
           const k = seg(t, 0.5, 0.95);
           pl.position.set(-1.5 + Math.min(1, k * 1.6), 0.42 * Math.sin(Math.PI * 1.35 * k), 0);
           pl.scale.setScalar(k < 0.5 ? 1 : 1 - ((k - 0.5) / 0.5) * 0.92);
-          pl.rotation.y = YAW.E + k * Math.PI * 2;
+          pl.rotation.y = YAW.E;
           sc1 = k < 0.45 ? 1 : Math.max(0.001, 1 - (k - 0.45) / 0.55);
         } else if (t < 1.1) { pl.scale.setScalar(0.001); sc1 = 0.001; }
         else if (t < 1.72) {   // sale disparado por el otro portal
