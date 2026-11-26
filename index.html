@@ -378,6 +378,8 @@
   #edLoadBox textarea, .ed-out textarea { width: 100%; min-height: 150px; box-sizing: border-box; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; resize: vertical; }
   .ed-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .ed-rand { flex-wrap: nowrap; }
+  #edUndo, #edRedo { font-family: "Inter", system-ui, sans-serif; font-size: 20px; line-height: 1; min-width: 40px; }
+  #edUndo:disabled, #edRedo:disabled { opacity: 0.4; cursor: default; }
   .ed-rand input[type=range] { flex: 1; min-width: 0; accent-color: var(--ink, #1f3347); }
   .ed-rand span { min-width: 3.2em; text-align: right; font-family: var(--font-display); font-size: 13px; }
   #levelTag { position: fixed; left: 50%; bottom: calc(14% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5;
@@ -450,6 +452,8 @@
     <div class="ed-top">
       <button id="edBack">‹ Inicio</button>
       <h2>Editor de mapas</h2>
+      <button id="edUndo" title="Deshacer (Ctrl+Z)" aria-label="Deshacer" disabled>↶</button>
+      <button id="edRedo" title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer" disabled>↷</button>
       <button id="edCopy">Copiar JSON</button>
       <button id="edLoad">Cargar JSON</button>
       <button id="edPlay" class="primary">▶ Probar</button>
@@ -2749,6 +2753,7 @@
   // Girar el mapa 90°: las flechas giran con él
   const ROT_CW = { '^': '>', '>': 'v', 'v': '<', '<': '^' }, ROT_CCW = { '^': '<', '<': 'v', 'v': '>', '>': '^' };
   function edRotate(cw) {
+    edPush();
     const H = ed.h, W = ed.w, g = ed.grid, map = cw ? ROT_CW : ROT_CCW;
     ed.grid = Array.from({ length: W }, (_, z) => Array.from({ length: H }, (_, x) => {
       const t = cw ? g[H - 1 - x][z] : g[x][W - 1 - z];
@@ -2781,6 +2786,33 @@
     else st.innerHTML = sol.gaveUp ? '<span class="bad">?</span> Demasiado grande para comprobarlo del todo.' : '<span class="bad">✗ No tiene solución</span> con las reglas actuales.';
     edSave();
   }
+  // Deshacer / rehacer: se guarda una foto del mapa antes de cada cambio (un trazo de pintura cuenta como uno)
+  const edHist = { undo: [], redo: [] }; let edStroke = null;
+  const edSnap = () => JSON.stringify({ grid: ed.grid, w: ed.w, h: ed.h, world: ed.world });
+  function edHistButtons() { $('edUndo').disabled = !edHist.undo.length; $('edRedo').disabled = !edHist.redo.length; }
+  function edPush(snap) {
+    edHist.undo.push(snap || edSnap()); if (edHist.undo.length > 200) edHist.undo.shift();
+    edHist.redo.length = 0; edHistButtons();
+  }
+  function edApply(snap) {
+    const d = JSON.parse(snap);
+    const worldChanged = d.world !== ed.world;
+    Object.assign(ed, d);
+    if (worldChanged) applyTheme(THEMES[ed.world] || THEMES.cielo);
+    renderEditor();
+  }
+  function edUndo() { if (!edHist.undo.length) return; edHist.redo.push(edSnap()); edApply(edHist.undo.pop()); edHistButtons(); }
+  function edRedo() { if (!edHist.redo.length) return; edHist.undo.push(edSnap()); edApply(edHist.redo.pop()); edHistButtons(); }
+  $('edUndo').addEventListener('click', edUndo);
+  $('edRedo').addEventListener('click', edRedo);
+  addEventListener('keydown', e => {
+    if ($('editor').hidden || !$('edLoadBox').hidden || !(e.ctrlKey || e.metaKey)) return;
+    const a = document.activeElement;
+    if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type === 'text'))) return;   // el nombre usa su propio deshacer
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); edUndo(); }
+    else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); edRedo(); }
+  });
   // Pintar directamente sobre la vista 3D: clic o arrastrar
   let edPainting = false;
   const edPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), edRay = new THREE.Raycaster(), edNdc = new THREE.Vector2(), edHit = new THREE.Vector3();
@@ -2795,6 +2827,7 @@
   }
   function edPaintAt(x, z) {
     if (ed.grid[z][x] === ed.brush) return;
+    if (edStroke) { edPush(edStroke); edStroke = null; }   // un trazo entero se deshace de una vez
     if (ed.brush === 'S') ed.grid.forEach(r => r.forEach((t, i) => { if (t === 'S') r[i] = '.'; }));   // un solo inicio
     ed.grid[z][x] = ed.brush;
     edValidate();
@@ -2804,15 +2837,15 @@
     prev.hover.visible = !!cell;
     if (cell) prev.hover.position.set(cell[0] - (ed.w - 1) / 2, 0.035, cell[1] - (ed.h - 1) / 2);
   }
-  $('edPreview').addEventListener('pointerdown', e => { const c = edPick(e); if (!c) return; edPainting = true; $('edPreview').setPointerCapture(e.pointerId); edPaintAt(c[0], c[1]); edHover(c); });
+  $('edPreview').addEventListener('pointerdown', e => { const c = edPick(e); if (!c) return; edPainting = true; edStroke = edSnap(); $('edPreview').setPointerCapture(e.pointerId); edPaintAt(c[0], c[1]); edHover(c); });
   $('edPreview').addEventListener('pointermove', e => { const c = edPick(e); edHover(c); if (edPainting && c) edPaintAt(c[0], c[1]); });
   $('edPreview').addEventListener('pointerleave', () => { if (!edPainting) edHover(null); });
   addEventListener('pointerup', () => { edPainting = false; });
   $('edPalette').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ed.brush = b.dataset.t; document.querySelectorAll('#edPalette button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   $('edName').addEventListener('input', e => { ed.name = e.target.value; edValidate(); });
-  $('edWorld').addEventListener('change', e => { ed.world = e.target.value; applyTheme(THEMES[ed.world] || THEMES.cielo); edValidate(); });
-  $('edW').addEventListener('change', e => { edResize(+e.target.value, ed.h); renderEditor(); });
-  $('edH').addEventListener('change', e => { edResize(ed.w, +e.target.value); renderEditor(); });
+  $('edWorld').addEventListener('change', e => { edPush(); ed.world = e.target.value; applyTheme(THEMES[ed.world] || THEMES.cielo); edValidate(); });
+  $('edW').addEventListener('change', e => { edPush(); edResize(+e.target.value, ed.h); renderEditor(); });
+  $('edH').addEventListener('change', e => { edPush(); edResize(ed.w, +e.target.value); renderEditor(); });
   // Mapa aleatorio con solución: se traza un recorrido al azar (sin volver sobre tus pasos) y cada casilla
   // recibe tantos pasos como veces se pisa; así el propio recorrido es una solución. Las casillas de
   // varias capas solo se permiten en cruces (3 o más vecinos). Luego se añaden algunas piezas especiales
@@ -2890,12 +2923,12 @@
   }
   $('edFill').addEventListener('input', e => { ed.fill = +e.target.value; $('edFillV').textContent = ed.fill + '%'; edSave(); });
   $('edRandom').addEventListener('click', () => {
-    const t0 = performance.now(); let ok = false;
+    edPush(); const t0 = performance.now(); let ok = false;
     while (!ok && performance.now() - t0 < 4000) ok = edGenerate(ed.w, ed.h, (ed.fill || 75) / 100);
     renderEditor();
     if (!ok) $('edStatus').innerHTML = '<span class="bad">✗</span> No he encontrado un mapa para este tamaño; prueba otra vez.';
   });
-  $('edClear').addEventListener('click', () => { ed.grid = ed.grid.map(r => r.map(() => '.')); renderEditor(); });
+  $('edClear').addEventListener('click', () => { edPush(); ed.grid = ed.grid.map(r => r.map(() => '.')); renderEditor(); });
   $('edRotL').addEventListener('click', () => edRotate(false));
   $('edRotR').addEventListener('click', () => edRotate(true));
   // Copiar JSON: al portapapeles; si el navegador no deja, se muestra seleccionado para copiarlo a mano
@@ -2920,6 +2953,7 @@
       const d = JSON.parse($('edJson').value);
       const rows = (d.rows || []).map(r => r.trim().split(/\s+/));
       if (!rows.length) throw new Error('sin filas');
+      edPush();
       ed.name = d.name || ed.name; if (THEMES[d.world]) ed.world = d.world;
       ed.h = Math.min(9, rows.length); ed.w = Math.min(9, Math.max(...rows.map(r => r.length)));
       ed.grid = Array.from({ length: ed.h }, (_, z) => Array.from({ length: ed.w }, (_, x) => (rows[z] && rows[z][x]) || '.'));
