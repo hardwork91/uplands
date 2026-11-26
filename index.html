@@ -360,8 +360,10 @@
   .palette button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-family: var(--font-body); font-size: 12px; text-align: left; min-width: 0; }
   .palette button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
   .palette .sw { flex: none; width: 24px; height: 24px; }
-  .ed-grid-box { overflow-x: auto; display: flex; justify-content: center; padding: 6px 0; }
-  .ed-grid { display: grid; gap: 3px; touch-action: none; user-select: none; }
+  .ed-grid-box { position: relative; margin: 6px auto; max-width: 100%; }
+  /* misma perspectiva que la vista 3D: girada 45° y aplastada (isométrica) */
+  .ed-grid { position: absolute; display: grid; gap: 3px; touch-action: none; user-select: none; transform: scaleY(0.577) rotate(45deg); transform-origin: center; }
+  .tilecell .g { display: inline-block; transform: rotate(-45deg) scaleY(1.732); }
   .tilecell { width: var(--cs); height: var(--cs); border-radius: 6px; display: grid; place-items: center; font-family: var(--font-display); font-size: 12px; color: #1f3346; cursor: pointer; box-sizing: border-box; }
   .sw, .tilecell { position: relative; border-radius: 6px; }
   .t-empty { background: rgba(255,255,255,0.25); border: 1px dashed rgba(31,51,70,0.3); }
@@ -2677,7 +2679,7 @@
   const ED_TILES = [
     ['.', 'Vacío', 't-empty', ''], ['S', 'Inicio', 't-S', 'S'],
     ['1', '1 paso', 't-1', '1'], ['2', '2 pasos', 't-2', '2'], ['3', '3 pasos', 't-3', '3'],
-    ['^', 'Flecha ↑', 't-arrow', '↑'], ['>', 'Flecha →', 't-arrow', '→'], ['v', 'Flecha ↓', 't-arrow', '↓'], ['<', 'Flecha ←', 't-arrow', '←'],
+    ['^', 'Flecha ↗', 't-arrow', '↑', '↗'], ['>', 'Flecha ↘', 't-arrow', '→', '↘'], ['v', 'Flecha ↙', 't-arrow', '↓', '↙'], ['<', 'Flecha ↖', 't-arrow', '←', '↖'],
     ['+', 'Hielo', 't-ice', '❄'], ['+2', 'Hielo 2 pasos', 't-ice2', '❄2'],
     ['a', 'Portal A', 't-a', 'A'], ['b', 'Portal B', 't-b', 'B'],
     ['K1', 'Botón 1', 't-K1', ''], ['L1', 'Barrera 1', 't-L1', ''],
@@ -2685,6 +2687,8 @@
     ['K3', 'Botón 3', 't-K3', ''], ['L3', 'Barrera 3', 't-L3', ''],
   ];
   const edInfo = t => ED_TILES.find(x => x[0] === t) || ED_TILES[0];
+  // las flechas giran con el rombo (apuntan como en el juego); números y letras se muestran derechos
+  const edGlyph = t => { const g = edInfo(t)[3]; return !g ? '' : ARROW[t] ? g : `<span class="g">${g}</span>`; };
   let ed = { name: 'Mi mapa', world: 'cielo', w: 5, h: 5, grid: null, brush: '1' };
   try { const d = JSON.parse(localStorage.getItem('uplands-editor') || 'null'); if (d && d.grid) ed = Object.assign(ed, d); } catch (e) {}
   if (!ed.grid) ed.grid = Array.from({ length: ed.h }, (_, z) => Array.from({ length: ed.w }, (_, x) => (z === 0 && x === 0 ? 'S' : '1')));
@@ -2765,12 +2769,19 @@
   }
   function renderEditor() {
     $('edName').value = ed.name; $('edW').value = ed.w; $('edH').value = ed.h; $('edWorld').value = ed.world;
-    $('edPalette').innerHTML = ED_TILES.map(([t, label, cls, glyph]) =>
-      `<button data-t="${t}" aria-pressed="${t === ed.brush}"><span class="sw ${cls}" style="display:grid;place-items:center;font-family:var(--font-display);font-size:11px">${glyph}</span>${label}</button>`).join('');
-    const cs = Math.max(30, Math.min(52, Math.floor((Math.min(innerWidth, 980) - (innerWidth < 760 ? 60 : 320)) / ed.w) - 3));
+    $('edPalette').innerHTML = ED_TILES.map(([t, label, cls, glyph, pal]) =>
+      `<button data-t="${t}" aria-pressed="${t === ed.brush}"><span class="sw ${cls}" style="display:grid;place-items:center;font-family:var(--font-display);font-size:11px">${pal || glyph}</span>${label}</button>`).join('');
+    // tamaño de casilla para que el rombo isométrico quepa en el panel
+    const avail = Math.max(240, $('edGrid').parentElement.parentElement.clientWidth - 40);
+    const gap = 3, cs = Math.max(24, Math.min(56, Math.floor(avail * Math.SQRT2 / (ed.w + ed.h)) - gap));
+    const gw = ed.w * cs + (ed.w - 1) * gap, gh = ed.h * cs + (ed.h - 1) * gap;
+    const bw = (gw + gh) / Math.SQRT2, bh = bw * 0.577;
+    const box = $('edGrid').parentElement; box.style.width = bw + 'px'; box.style.height = bh + 'px';
     const grid = $('edGrid');
     grid.style.gridTemplateColumns = `repeat(${ed.w}, var(--cs))`; grid.style.setProperty('--cs', cs + 'px');
-    grid.innerHTML = ed.grid.map((row, z) => row.map((t, x) => { const [, label, cls, glyph] = edInfo(t); return `<div class="tilecell ${cls}" data-x="${x}" data-z="${z}" title="${label}">${glyph}</div>`; }).join('')).join('');
+    grid.style.width = gw + 'px'; grid.style.height = gh + 'px';
+    grid.style.left = (bw - gw) / 2 + 'px'; grid.style.top = (bh - gh) / 2 + 'px';
+    grid.innerHTML = ed.grid.map((row, z) => row.map((t, x) => `<div class="tilecell ${edInfo(t)[2]}" data-x="${x}" data-z="${z}" title="${edInfo(t)[1]}">${edGlyph(t)}</div>`).join('')).join('');
     edValidate();
   }
   function edValidate() {
@@ -2791,8 +2802,8 @@
     if (ed.grid[z][x] === ed.brush) return;
     if (ed.brush === 'S') ed.grid.forEach(r => r.forEach((t, i) => { if (t === 'S') r[i] = '.'; }));   // un solo inicio
     ed.grid[z][x] = ed.brush;
-    const [, label, cls, glyph] = edInfo(ed.brush);
-    if (ed.brush === 'S') renderEditor(); else { el.className = `tilecell ${cls}`; el.textContent = glyph; el.title = label; edValidate(); }
+    const [, label, cls] = edInfo(ed.brush);
+    if (ed.brush === 'S') renderEditor(); else { el.className = `tilecell ${cls}`; el.innerHTML = edGlyph(ed.brush); el.title = label; edValidate(); }
   };
   $('edGrid').addEventListener('pointerdown', e => { edPainting = true; edPaint(e); });
   $('edGrid').addEventListener('pointermove', e => { if (edPainting) edPaint({ target: document.elementFromPoint(e.clientX, e.clientY) || e.target }); });
