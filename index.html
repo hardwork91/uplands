@@ -458,7 +458,7 @@
           <div class="ed-row"><label for="edName">Nombre</label><input type="text" id="edName" maxlength="40"></div>
           <div class="ed-row"><label for="edW">Ancho</label><input type="number" id="edW" min="3" max="9"><label for="edH">Alto</label><input type="number" id="edH" min="3" max="9"></div>
           <div class="ed-row"><label for="edWorld">Mundo</label><select id="edWorld"><option value="cielo">Cielo</option><option value="dunas">Dunas</option><option value="escarcha">Escarcha</option></select></div>
-          <div class="ed-actions"><button id="edRotL" title="Girar a la izquierda">⟲ Girar</button><button id="edRotR" title="Girar a la derecha">Girar ⟳</button><button id="edClear">Vaciar</button></div>
+          <div class="ed-actions"><button id="edRotL" title="Girar a la izquierda">⟲ Girar</button><button id="edRotR" title="Girar a la derecha">Girar ⟳</button><button id="edClear">Vaciar</button><button id="edRandom" title="Genera un mapa aleatorio con solución del tamaño elegido">🎲 Aleatorio</button></div>
         </div>
         <div class="panel">
           <span class="ed-lbl">CASILLAS</span>
@@ -2752,10 +2752,10 @@
     ed.w = H; ed.h = W;
     renderEditor();
   }
-  let edCurrentJson = '';
+  let edCurrentJson = '', edKnown = null;   // edKnown: solución del último mapa aleatorio (evita buscarla otra vez)
   function edJson() {
     const rows = edRows();
-    const sol = edSolve(rows);
+    const sol = edKnown && edKnown.rows === rows.join('|') ? { path: edKnown.path } : edSolve(rows);
     const time = sol.path ? 2 * sol.path.length + 6 : 40;
     return { rows, sol, json: JSON.stringify({ name: ed.name || 'Mi mapa', world: ed.world, time, rows }, null, 2) };
   }
@@ -2807,6 +2807,84 @@
   $('edWorld').addEventListener('change', e => { ed.world = e.target.value; applyTheme(THEMES[ed.world] || THEMES.cielo); edValidate(); });
   $('edW').addEventListener('change', e => { edResize(+e.target.value, ed.h); renderEditor(); });
   $('edH').addEventListener('change', e => { edResize(ed.w, +e.target.value); renderEditor(); });
+  // Mapa aleatorio con solución: se traza un recorrido al azar (sin volver sobre tus pasos) y cada casilla
+  // recibe tantos pasos como veces se pisa; así el propio recorrido es una solución. Las casillas de
+  // varias capas solo se permiten en cruces (3 o más vecinos). Luego se añaden algunas piezas especiales
+  // que no rompen el recorrido: flechas, hielo donde se sigue recto y un botón con su barrera.
+  function edGenerate(W, H) {
+    const DK = Object.keys(DIRS), ARR = { N: '^', S: 'v', E: '>', W: '<' }, OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
+    const N = W * H, rnd = n => Math.floor(Math.random() * n);
+    let best = null;
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const target = Math.round(N * (0.55 + Math.random() * 0.3));
+      const vis = {}, walk = [], dirs = [];
+      let x = rnd(W), z = rnd(H), last = null;
+      const k0 = key(x, z); vis[k0] = 1; walk.push(k0);
+      for (let guard = 0; guard < N * 3; guard++) {
+        const opts = [];
+        for (const d of DK) {
+          if (last && d === OPP[last]) continue;
+          const nx = x + DIRS[d][0], nz = z + DIRS[d][1], nk = key(nx, nz);
+          if (nx < 0 || nz < 0 || nx >= W || nz >= H || nk === k0) continue;
+          const v = vis[nk] || 0;
+          if (v >= 3) continue;
+          opts.push([d, nx, nz, nk, v ? 0.12 : 1]);
+        }
+        if (!opts.length) break;
+        let r = Math.random() * opts.reduce((a, o) => a + o[4], 0), o = opts[0];
+        for (const c of opts) { r -= c[4]; if (r <= 0) { o = c; break; } }
+        [last, x, z] = o; vis[o[3]] = (vis[o[3]] || 0) + 1; walk.push(o[3]); dirs.push(o[0]);
+        if (Object.keys(vis).length >= target && Math.random() < 0.25) break;
+      }
+      const tiles = Object.keys(vis), count = tiles.length;
+      if (count < Math.max(5, N * 0.4)) continue;
+      // varias capas solo en cruces
+      const nb = k => { const [a, b] = k.split(',').map(Number); return DK.filter(d => vis[key(a + DIRS[d][0], b + DIRS[d][1])]).length; };
+      if (tiles.some(k => vis[k] > 1 && nb(k) < 3)) continue;
+      const multi = tiles.filter(k => vis[k] > 1).length;
+      const score = count + 2 * Math.min(multi, Math.ceil(N / 12)) - 3 * Math.max(0, multi - Math.ceil(N / 8));
+      if (!best || score > best.score) best = { score, vis, walk, dirs };
+    }
+    if (!best) return false;
+    const { vis, walk, dirs } = best;
+    const grid = Array.from({ length: H }, () => Array(W).fill('.'));
+    const set = (k, t) => { const [a, b] = k.split(',').map(Number); grid[b][a] = t; };
+    const single = i => i > 0 && vis[walk[i]] === 1;
+    walk.forEach((k, i) => set(k, i === 0 ? 'S' : String(vis[k])));
+    const used = new Set();
+    // hielo: casilla que se cruza en línea recta y no es la última
+    for (let i = 1; i < walk.length - 1; i++)
+      if (single(i) && dirs[i - 1] === dirs[i] && Math.random() < 0.18) { set(walk[i], '+'); used.add(i); }
+    // flechas: en el sentido en que se entra
+    for (let i = 1; i < walk.length; i++)
+      if (single(i) && !used.has(i) && !used.has(i - 1) && Math.random() < 0.1) { set(walk[i], ARR[dirs[i - 1]]); used.add(i); }
+    // un botón y, más adelante en el recorrido, su barrera
+    if (walk.length > 10 && Math.random() < 0.6) {
+      const ks = walk.map((_, i) => i).filter(i => single(i) && !used.has(i) && !used.has(i - 1) && i < walk.length - 4);
+      if (ks.length) {
+        const ki = ks[rnd(Math.ceil(ks.length / 2))];
+        const ls = walk.map((_, i) => i).filter(i => i > ki + 2 && single(i) && !used.has(i) && !used.has(i - 1));
+        if (ls.length) { const li = ls[rnd(ls.length)]; set(walk[ki], 'K1'); set(walk[li], 'L1'); used.add(ki); used.add(li); }
+      }
+    }
+    // se comprueba reproduciendo el recorrido con las reglas del juego (mucho más rápido que buscar)
+    const { s: st0, start, errors } = stateFromRows(grid.map(r => r.join(' ')));
+    if (errors.length) return false;
+    // en el hielo no se para: el deslizamiento es parte del mismo movimiento
+    const moves = dirs.filter((d, j) => grid[+walk[j].split(',')[1]][+walk[j].split(',')[0]] !== '+');
+    let st = st0, pos = start;
+    for (const d of moves) { const r = step(st, pos, d); if (!r) return false; [st, pos] = r; }
+    if (Object.values(st).some(c => c.coins)) return false;
+    ed.grid = grid; ed.w = W; ed.h = H;
+    edKnown = { rows: edRows().join('|'), path: moves };
+    return true;
+  }
+  $('edRandom').addEventListener('click', () => {
+    const t0 = performance.now(); let ok = false;
+    while (!ok && performance.now() - t0 < 4000) ok = edGenerate(ed.w, ed.h);
+    renderEditor();
+    if (!ok) $('edStatus').innerHTML = '<span class="bad">✗</span> No he encontrado un mapa para este tamaño; prueba otra vez.';
+  });
   $('edClear').addEventListener('click', () => { ed.grid = ed.grid.map(r => r.map(() => '.')); renderEditor(); });
   $('edRotL').addEventListener('click', () => edRotate(false));
   $('edRotR').addEventListener('click', () => edRotate(true));
