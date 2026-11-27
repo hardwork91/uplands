@@ -321,7 +321,15 @@
   #banner .tolevels { pointer-events: auto; display: block; margin: 8px auto 0; font-size: 14px; }
   @media (max-width: 520px) { .tbar { max-width: none; flex-basis: auto; padding: 24px 12px 10px; } }
   /* Tanque de combustible: se llena de abajo arriba con cada celda */
-  body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull { display: none !important; }
+  body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull, body:not([data-screen="game"]) #countdown { display: none !important; }
+  /* Cuenta atrás al empezar el nivel: Preparados, listos, ¡ya! */
+  #countdown { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; white-space: nowrap;
+    font-family: var(--font-display); font-size: clamp(30px, 8vw, 54px); letter-spacing: 0.04em; color: var(--ink);
+    text-shadow: 0 3px 0 #fff, 0 0 16px rgba(255, 255, 255, 0.9); }
+  #countdown.go { color: #2fa35c; font-size: clamp(38px, 10vw, 68px); }
+  #countdown.pop { animation: cdPop 0.7s ease-out both; }
+  @keyframes cdPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    35% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
   /* esquina inferior derecha: fuera del centro, donde está el mapa */
   #tank { position: fixed; z-index: 4; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 6px; pointer-events: none;
@@ -422,6 +430,7 @@
   <span class="tank-count" id="tankCount">0/0</span>
 </div>
 <div id="fuelFull" hidden></div>
+<div id="countdown" hidden aria-live="assertive"></div>
 <div id="handTip" hidden></div>
 
 <div id="splash" class="screen"><h1 class="logo">UPLANDS</h1></div>
@@ -1518,6 +1527,7 @@
 
   function loadLevel(i, withIntro = true) {
     L = i;
+    hideCountdown();
     tweens.length = 0;
     if (player.parent !== scene) freshPlayer();
     player.scale.set(1, 1, 1);
@@ -1622,11 +1632,11 @@
         spawnPuff(toWorld(pos[0], pos[1]));
         sc.group.attach(player); player.position.set(0, 0, 0);
         rippleT = clock.elapsedTime; rippleO = pos.slice();
-        levelReadyT = clock.elapsedTime;
         Snd.sfx.land();
         squash();
         phase = 'idle';
-        if (!maybeMechanicIntro()) { maybeHand(); checkStuck(); }
+        // primero las explicaciones de mecánicas nuevas (si las hay) y luego la cuenta atrás
+        if (!maybeMechanicIntro(startCountdown)) startCountdown();
       });
     });
   }
@@ -2264,7 +2274,7 @@
     es: {
       left: 'FALTAN', pause: 'Pausa', hint: 'Pista', undo: 'Deshacer', slow: 'Lento', play: 'Jugar', settings: 'Ajustes', achievements: 'Logros',
       home: '‹ Inicio', resume: 'Continuar', restart: '↺ Reiniciar', settingsBtn: '⚙ Ajustes', exitMap: 'Salir al mapa', levels: 'Niveles',
-      retry: '↺ Repetir', next: 'Siguiente salto', soonBtn: 'Pronto', cleared: 'Tanque lleno, listo para despegar', allDone: '¡Has completado Uplands!', level: 'Salto {n}', jumpDone: 'Salto {n} completado', fuelFull: '¡Tanque lleno!', fuel: 'Fuel', soon: 'pronto',
+      retry: '↺ Repetir', next: 'Siguiente salto', soonBtn: 'Pronto', cleared: 'Tanque lleno, listo para despegar', allDone: '¡Has completado Uplands!', level: 'Salto {n}', jumpDone: 'Salto {n} completado', fuelFull: '¡Tanque lleno!', cd0: 'Preparados', cd1: 'Listos', cd2: '¡Ya!', fuel: 'Fuel', soon: 'pronto',
       unlockWorld: 'Termina {prev} para desbloquear {w}', cielo: 'Cielo', dunas: 'Dunas', escarcha: 'Escarcha',
       coinsPlus: '+{n} monedas', noCoins: 'Sin monedas nuevas: mejora tus estrellas', free: 'Gratis',
       needCoins: 'Te faltan monedas', costIs: '{what} cuesta {c}. Tienes {have}.', whatHint: 'Una pista', whatUndo: 'Deshacer', whatSlow: 'La cámara lenta',
@@ -2292,7 +2302,7 @@
     en: {
       left: 'LEFT', pause: 'Pause', hint: 'Hint', undo: 'Undo', slow: 'Slow', play: 'Play', settings: 'Settings', achievements: 'Achievements',
       home: '‹ Home', resume: 'Resume', restart: '↺ Restart', settingsBtn: '⚙ Settings', exitMap: 'Back to map', levels: 'Levels',
-      retry: '↺ Retry', next: 'Next jump', soonBtn: 'Soon', cleared: 'Tank full, ready for lift-off', allDone: 'You completed Uplands!', level: 'Jump {n}', jumpDone: 'Jump {n} complete', fuelFull: 'Tank full!', fuel: 'Fuel', soon: 'soon',
+      retry: '↺ Retry', next: 'Next jump', soonBtn: 'Soon', cleared: 'Tank full, ready for lift-off', allDone: 'You completed Uplands!', level: 'Jump {n}', jumpDone: 'Jump {n} complete', fuelFull: 'Tank full!', cd0: 'Ready', cd1: 'Set', cd2: 'Go!', fuel: 'Fuel', soon: 'soon',
       unlockWorld: 'Finish {prev} to unlock {w}', cielo: 'Sky', dunas: 'Dunes', escarcha: 'Frost',
       coinsPlus: '+{n} coins', noCoins: 'No new coins: beat your star record', free: 'Free',
       needCoins: 'Not enough coins', costIs: '{what} costs {c}. You have {have}.', whatHint: 'A hint', whatUndo: 'Undo', whatSlow: 'Slow motion',
@@ -2416,14 +2426,38 @@
   function hideHand() { $('handTip').hidden = true; }
 
   // ---------- Bloques nuevos: modal con una mini escena 3D que muestra cómo funciona ----------
-  function maybeMechanicIntro() {
+  // Cuenta atrás: el tiempo no corre hasta el «¡Ya!», y mientras tanto no te puedes mover
+  // (se puede mirar el mapa, pero el reloj empieza igual para todos)
+  const CD_STEP = 0.75;
+  let cdT = 0, cdStep = -1;
+  function startCountdown() {
+    if (phase !== 'idle' || remaining === 0) return;
+    phase = 'countdown'; queued = null; cdT = 0; cdStep = -1;
+  }
+  function tickCountdown(dt) {
+    if (phase !== 'countdown') return;
+    cdT += dt;
+    const step = Math.floor(cdT / CD_STEP);
+    if (step === cdStep || step > 2) return;
+    cdStep = step;
+    const el = $('countdown');
+    el.textContent = tr('cd' + step); el.className = step === 2 ? 'go' : ''; el.hidden = false;
+    void el.offsetWidth; el.classList.add('pop');
+    clearTimeout(el._h); el._h = setTimeout(() => { el.hidden = true; }, 720);
+    if (step < 2) { Snd.sfx.count(); return; }
+    Snd.sfx.go(); vib(30);
+    phase = 'idle'; timersOn = true; levelReadyT = clock.elapsedTime;
+    maybeHand(); checkStuck();
+  }
+  function hideCountdown() { const el = $('countdown'); el.hidden = true; clearTimeout(el._h); }
+  function maybeMechanicIntro(then) {
     prog.seen = prog.seen || {};
     const kinds = new Set(Object.values(cells).map(c => c.base));
     const k = ['oneway', 'ice', 'portal', 'key'].find(m => kinds.has(m) && !prog.seen[m]);
     if (!k) return false;
     prog.seen[k] = true; saveProg();
     openModal(tr(`m_${k}_t`), `<canvas id="demoCanvas"></canvas><p>${tr('m_' + k)}</p>`,
-      [{ label: tr('ok'), primary: true, onClick: () => { if (!maybeMechanicIntro()) checkStuck(); } }],
+      [{ label: tr('ok'), primary: true, onClick: () => { if (!maybeMechanicIntro(then)) { if (then) then(); else checkStuck(); } } }],
       () => startDemo(k));
     return true;
   }
@@ -2637,10 +2671,10 @@
   let pausedFrom = null;
   function pause() {
     if (document.body.dataset.screen !== 'game' || !$('modal').hidden || !$('pause').hidden) return;
-    if (!['idle', 'lost', 'intro', 'moving'].includes(phase)) return;
-    pausedFrom = phase === 'lost' ? 'lost' : 'idle';
-    // en reposo se pausa ya; si hay una animación en curso, el bucle pausa en cuanto termine
-    if (phase === 'idle' || phase === 'lost') phase = 'paused';
+    if (!['idle', 'lost', 'intro', 'moving', 'countdown'].includes(phase)) return;
+    pausedFrom = phase === 'lost' ? 'lost' : phase === 'countdown' ? 'countdown' : 'idle';
+    // en reposo (o en la cuenta atrás) se pausa ya; si hay una animación en curso, el bucle pausa en cuanto termine
+    if (phase === 'idle' || phase === 'lost' || phase === 'countdown') phase = 'paused';
     $('pause').hidden = false; $('resumeBtn').focus();
   }
   function resume() {
@@ -3206,6 +3240,8 @@
       win:      () => vib([20, 40, 20, 40, 60]) || [0, 1, 2, 3, 4, 5, 7].forEach((d, i) => bell(freq(5 + d), 0.13, i * 0.09)),
       lose:     () => { tone(freq(6), { to: freq(4), dur: 0.45, gain: 0.1, type: 'triangle' }); tone(freq(4), { to: freq(1), dur: 0.7, gain: 0.1, type: 'triangle', delay: 0.28 }); },
       voidFall: () => tone(760, { to: 110, dur: 1.1, gain: 0.1 }),
+      count:    () => bell(freq(7), 0.1, 0),
+      go:       () => { bell(freq(14), 0.12, 0); bell(freq(16), 0.1, 0.05); },
       hint:     () => [0, 2, 4].forEach((d, i) => bell(freq(12 + d), 0.07, i * 0.06)),
       undo:     () => { noise({ f0: 220, f1: 2400, dur: 0.35, gain: 0.07 }); tone(420, { to: 260, dur: 0.3, gain: 0.08, type: 'triangle' }); },
       thrust:   (d) => { noise({ f0: 260, f1: 110, dur: d, gain: 0.14, type: 'lowpass', q: 0.8 }); noise({ f0: 1800, f1: 900, dur: d * 0.8, gain: 0.03, type: 'bandpass' }); },
@@ -3259,6 +3295,7 @@
     }
     const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
     wtime += wdt;
+    tickCountdown(dt);
     tickBar(wdt);
     if (player.userData.flames.visible) player.userData.flames.children.forEach(f => { f.scale.y = 0.75 + Math.random() * 0.55; });
     updateWeather(wdt, wtime);
