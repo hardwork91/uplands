@@ -2802,7 +2802,7 @@
     map.halfH = map.halfW / asp;
     if (asp >= 1) { map.halfH = 6.2; map.halfW = map.halfH * asp; }
     map.rx = asp < 1 ? 1.5 : 2;
-    map.amp = Math.round(Math.max(1.5, Math.min(4.5, map.halfW - map.rx - 0.9)) * 2) / 2;   // en pasos de 0,5 para no reconstruir por nada
+    map.amp = Math.floor(Math.max(1.5, Math.min(4.5, map.halfW - map.rx - 1.2)) * 2) / 2;   // deja margen a los lados   // en pasos de 0,5 para no reconstruir por nada
     Object.assign(mapCam, { left: -map.halfW, right: map.halfW, top: map.halfH, bottom: -map.halfH });
     mapCam.updateProjectionMatrix();
     map.min = padY(0) + 0.62 * map.halfH / COS_E;
