@@ -2738,9 +2738,9 @@
       isl.children.forEach(c => { c.position.x -= 0.5; c.position.z -= 0.5; });
       isl.position.copy(behind(x, d, y)); isl.scale.setScalar(sc);
       // atenuadas hacia el color del cielo de su mundo, como si estuvieran lejos (más cuanto más al fondo)
-      const haze = new THREE.Color(theme.top).lerp(new THREE.Color(theme.bot), 0.55), k = Math.min(0.62, 0.34 + d * 0.1);
+      const haze = new THREE.Color(theme.top).lerp(new THREE.Color(theme.bot), 0.1), k = Math.min(0.5, 0.32 + d * 0.08);
       isl.traverse(o => { if (!o.isMesh) return; o.castShadow = false; o.material = o.material.clone();
-        o.material.color.lerp(haze, k); if (o.material.emissive) o.material.emissive.copy(haze).multiplyScalar(k * 0.35); });
+        o.material.color.lerp(haze, k); if (o.material.emissive) o.material.emissive.copy(haze).multiplyScalar(k * 0.12); });
       isl.userData.base = isl.position.y; isl.userData.ph = rnd() * 6;
       mapScene.add(isl); map.pads.push(isl);   // flotan igual que las islas de niveles
     };
