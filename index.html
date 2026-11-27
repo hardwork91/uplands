@@ -197,32 +197,11 @@
   #map { background: transparent; touch-action: none; overflow: hidden; cursor: grab; user-select: none; -webkit-user-select: none; }
   #mapPins { position: absolute; inset: 0; pointer-events: none; }
   /* velo de nubes sobre los niveles que aún no se ven: opaco arriba y con borde algodonoso abajo */
-  #mapFog { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: var(--fog, #fff); }
-  #mapFog::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 26px; margin-top: -1px;
-    background: radial-gradient(28px 22px at 14px 0, var(--fog, #fff) 98%, transparent 100%) 0 0 / 46px 26px repeat-x;
-    opacity: 1; }
+  #mapFog { position: absolute; left: 0; right: 0; top: 0; pointer-events: none;
+    background: linear-gradient(180deg, var(--fog, #fff) 0, var(--fog, #fff) calc(100% - 90px), transparent 100%); }
   .pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 0; border: none; background: transparent; box-shadow: none; border-radius: 18px; will-change: transform;
     backdrop-filter: none; -webkit-backdrop-filter: none; }   /* sin el desenfoque de los botones normales: se ve la isla */
   .pin:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-  .pin .badge { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box;
-    display: grid; place-items: center; background: #fff; border: 3px solid var(--ink); color: var(--ink);
-    font-family: var(--font-display); font-size: 18px; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22); transition: transform 0.12s; }
-  .pin:not(:disabled):hover .badge, .pin:not(:disabled):active .badge { transform: translateX(-50%) scale(1.1); }
-  .pin .n { line-height: 1; display: grid; place-items: center; }
-  .pin .n svg { width: 18px; height: 18px; }
-  .pin .st { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); font-family: var(--font-body); font-size: 12px; letter-spacing: 1px;
-    color: var(--star); white-space: nowrap; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
-  .pin .st .off { color: var(--star-off); }
-  .pin:disabled { cursor: default; }
-  .pin.locked .badge, .pin.soon .badge { background: #e4e9ee; border-color: rgba(31, 51, 70, 0.45); color: rgba(31, 51, 70, 0.55); }
-  .pin.next .badge { background: #ffd23f; }
-  .pin.next .badge::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid #fff; animation: pinPulse 1.4s ease-out infinite; }
-  @keyframes pinPulse { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(1.35); } }
-  .wlabel { position: absolute; left: 0; top: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 8px 18px; border-radius: 14px; background: var(--wbg); color: var(--wink); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); border: 2px solid rgba(255, 255, 255, 0.7); text-align: center; }
-  .wlabel b { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; font-weight: 400; display: flex; align-items: center; gap: 6px; }
-  .wlabel span { font-family: var(--font-display); font-size: 12px; opacity: 0.9; max-width: 220px; }
-  .wlabel svg { width: 18px; height: 18px; }
   .map-top { position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: center; gap: 10px; pointer-events: none; }
   .map-top > * { pointer-events: auto; }
 
@@ -371,7 +350,7 @@
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
   @keyframes tagInOut { 0% { opacity: 0; transform: translate(-50%, -8px); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -4px); } }
-  @media (prefers-reduced-motion: reduce) { .pin.next .badge::after, #splash .logo { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #splash .logo { animation: none; } }
 </style>
 </head>
 <body>
@@ -2676,14 +2655,18 @@
       }
     }
   }
-  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
-  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x2a2a2a });   // muro de nubes: opaco, tapa lo que aún no se ve
+  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x222222, flatShading: true });
+  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x333333, flatShading: true });   // muro de nubes: opaco, tapa lo que aún no se ve
+  const PUFF = new THREE.IcosahedronGeometry(1, 1);
   function mapCloud(size, mat = mapCloudMat) {
-    const c = new THREE.Group(), n = 3 + Math.floor(Math.random() * 3);
+    // varias bolas achatadas que se solapan: más grandes en el centro, base algo plana
+    const c = new THREE.Group(), n = 4 + Math.floor(Math.random() * 3);
     for (let j = 0; j < n; j++) {
-      const w = (1 + Math.random() * 0.9) * size, dd = (0.8 + Math.random() * 0.6) * size;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45 * size, dd), mat); b.position.set(j * 0.75 * size, Math.random() * 0.2, Math.random() * 0.5); c.add(b);
-      const t = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3 * size, dd * 0.6), mat); t.position.set(b.position.x, 0.35 * size, b.position.z); c.add(t);
+      const t = j / (n - 1), r = size * (0.45 + 0.4 * Math.sin(Math.PI * t) + Math.random() * 0.12);
+      const b = new THREE.Mesh(PUFF, mat);
+      b.scale.set(r, r * 0.72, r * 0.85);
+      b.position.set((t - 0.5) * size * 2.6, r * 0.25, (Math.random() - 0.5) * size * 0.4);
+      c.add(b);
     }
     return c;
   }
@@ -2783,10 +2766,10 @@
     // muro de nubes que tapa los niveles que aún no se pueden ver (se coloca al abrir el mapa)
     map.fog = new THREE.Group();
     // solo el borde: por encima, un velo del color de las nubes (#mapFog) tapa todo lo demás
-    const n = Math.ceil((2 * map.halfW + 6) / 1.3);
+    const n = Math.ceil((2 * map.halfW + 6) / 1.6);
     for (let i = 0; i < n; i++) {
-      const c = mapCloud(0.8 + Math.random() * 0.5, mapFogMat);
-      c.position.copy(behind(-map.halfW - 4 + i * 1.3 + Math.random() * 0.6, -1 + Math.random() * 2, Math.random() * 0.5));
+      const c = mapCloud(0.7 + Math.random() * 0.35, mapFogMat);
+      c.position.copy(behind(-map.halfW - 4 + i * 1.6 + Math.random() * 0.6, -1 + Math.random() * 2, 0.3 + Math.random() * 0.5));
       map.fog.add(c);
     }
     mapScene.add(map.fog);
@@ -2840,36 +2823,23 @@
       const b = document.createElement('button'), lv = s.lv;
       b.className = 'pin'; b.dataset.k = k;
       b.setAttribute('aria-label', `${tr(WORLDS[s.wi].id)} · ${tr('level', { n: s.n })}`);
-      if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="badge"><span class="n">${s.n}</span></span>`; b.disabled = true; }
-      else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="badge"><span class="n">${LOCK_SVG}</span></span>`; b.disabled = true; }
+      if (lv === null || !slotUnlocked(k)) { b.classList.add('locked'); b.disabled = true; }
       else {
         const n = best[lv];
-        b.innerHTML = `<span class="badge"><span class="n">${s.n}</span></span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
+        if (n !== undefined) b.setAttribute('aria-label', b.getAttribute('aria-label') + ` · ${'★'.repeat(n)}`);
         if (n === undefined && nextK < 0) { b.classList.add('next'); nextK = k; }
         b.addEventListener('click', e => { if (map.moved > 8) { e.preventDefault(); return; } startLevel(lv); });
       }
       box.appendChild(b);
-    });
-    WORLDS.forEach((w, wi) => {
-      if (wi * 12 > map.limitK) return;
-      const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
-      const el = document.createElement('div');
-      el.className = 'wlabel' + (worldUnlocked(wi) ? '' : ' locked'); el.dataset.wi = wi;
-      const t = THEMES[w.id];
-      el.style.setProperty('--wink', t.ink); el.style.setProperty('--wbg', t.top);
-      el.innerHTML = worldUnlocked(wi)
-        ? `<b>${tr(w.id)}</b><span>★ ${got} / ${w.levels.length * 3}</span>`
-        : `<b>${LOCK_SVG} ${tr(w.id)}</b><span>${tr('unlockWorld', { prev: wi ? tr(WORLDS[wi - 1].id) : '', w: tr(w.id) })}</span>`;
-      box.appendChild(el);
     });
     return nextK;
   }
   const _pv = new THREE.Vector3(), _up = new THREE.Vector3(0, 0.3, 0);
   function placeMapPins() {
     if (map.wallY !== null) {
-      _pv.set(0, map.wallY + 0.35, 0).project(mapCam);
-      const fy = (1 - _pv.y) * innerHeight / 2, f = $('mapFog');
-      f.style.height = Math.max(0, fy) + 'px';
+      _pv.set(0, map.wallY + 0.6, 0).project(mapCam);
+      const fy = (1 - _pv.y) * innerHeight / 2 + 40, f = $('mapFog');
+      f.style.height = fy > 100 ? fy + 'px' : '0px';   // sin restos pegados arriba cuando el muro queda fuera de la vista
       f.style.setProperty('--fog', '#' + mapFogMat.color.getHexString());
     }
     const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
@@ -2884,14 +2854,13 @@
     const u = innerWidth / (2 * map.halfW);
     for (const el of box.children) {
       if (el.dataset.k !== undefined) {
-        const k = +el.dataset.k, p = map.pads[k].position, lift = (k === map.avatarK ? 1.15 : 0.62) * COS_E * u;
-        const w = Math.max(64, 1.35 * u), top = lift + 24, h = top + 0.95 * u;
+        const k = +el.dataset.k, p = map.pads[k].position, lift = (k === map.avatarK ? 0.75 : 0.35) * COS_E * u;
+        const w = Math.max(64, 1.35 * u), top = lift + 10, h = top + 0.95 * u;
         _pv.set(p.x, p.y, p.z).project(mapCam);
         const x = (_pv.x + 1) * W2, y = (1 - _pv.y) * H2, off = y < -200 || y > innerHeight + 200;
         el.style.visibility = off ? 'hidden' : '';
         if (!off) { el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - top).toFixed(1)}px)`; }
       }
-      else { const wi = +el.dataset.wi; put(el, wi === 0 ? padPos(0).setY(padY(0) - 1.7) : pathPos((padS(wi * 12 - 1) + padS(wi * 12)) / 2).add(_up)); }
     }
   }
   function updateMap(dt, time) {
@@ -2916,9 +2885,10 @@
     }
     if (map.avatar && map.avatarK >= 0) {
       const p = map.pads[map.avatarK].position;
-      map.avatar.position.set(p.x, p.y + 0.0, p.z);
+      map.avatar.position.set(p.x, p.y, p.z).addScaledVector(MAP_F, 0.44).addScaledVector(MAP_R, 0.3);
       map.avatar.userData.body.position.y = Math.abs(Math.sin(time * 2.2)) * 0.05;
     }
+    if (map.nextCap) map.nextCap.emissiveIntensity = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(time * 4));
     mapSky(map.y);
     placeMapPins();
   }
@@ -2948,11 +2918,65 @@
   addEventListener('resize', () => {
     if (document.body.dataset.screen !== 'map') return;
     mapFit();
-    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); mapApplyLimit(); mapFit(); renderMapPins(); }
+    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); mapApplyLimit(); mapFit(); renderMapPins(); mapMarks(); }
     map.y = mapClamp(map.y);
   });
 
   // Abre el mapa centrado en un nivel (el que acabas de jugar o el siguiente pendiente)
+  // Interruptor de cada nivel (como los del juego) con su número o un candado pegado encima, y sus estrellas
+  const MAP_BTN_COL = KEY_COLORS[1];
+  const mapStarShape = (() => { const sh = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.42 : 1; sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } return sh; })();
+  const MAP_STAR_GEO = new THREE.ExtrudeGeometry(mapStarShape, { depth: 0.35, bevelEnabled: false }); MAP_STAR_GEO.center();
+  const mapStarMat = new THREE.MeshStandardMaterial({ color: 0xffc93a, emissive: 0xb07a00, emissiveIntensity: 0.35, roughness: 0.4, metalness: 0.2 });
+  const stickerTex = {};
+  function stickerFor(label) {
+    if (stickerTex[label]) return stickerTex[label];
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.clearRect(0, 0, 128, 128);
+    if (label === 'lock') {   // pegatina blanca con un candado
+      g.fillStyle = '#f4f6f8'; g.beginPath(); g.roundRect ? g.roundRect(14, 14, 100, 100, 26) : g.rect(14, 14, 100, 100); g.fill();
+      g.strokeStyle = '#3a4652'; g.lineWidth = 10; g.lineCap = 'round';
+      g.beginPath(); g.arc(64, 58, 18, Math.PI, 0); g.stroke();
+      g.fillStyle = '#3a4652'; g.fillRect(36, 58, 56, 40);
+      g.fillStyle = '#f4f6f8'; g.beginPath(); g.arc(64, 74, 6, 0, 7); g.fill(); g.fillRect(61, 74, 6, 14);
+    } else {                  // número impreso en la cara del botón
+      g.fillStyle = 'rgba(80, 50, 0, 0.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `72px "Anak Bijak", "Inter", sans-serif`; g.fillText(label, 64, 70);
+    }
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+    return (stickerTex[label] = t);
+  }
+  const G_STICKER = new THREE.CircleGeometry(0.22, 32);
+  function mapMarks() {
+    for (const p of map.pads.slice(0, SLOTS.length)) if (p.userData.mark) { p.remove(p.userData.mark); p.userData.mark = null; }
+    map.nextCap = null;
+    SLOTS.forEach((s, k) => {
+      if (k > map.limitK) return;
+      const pad = map.pads[k], g = new THREE.Group(), lv = s.lv;
+      const open = lv !== null && slotUnlocked(k), n = open ? best[lv] : undefined;
+      const btn = new THREE.Group(); btn.position.set(-0.06, 0, -0.06);   // un poco hacia el fondo; delante van las estrellas
+      const base = new THREE.Mesh(G_BTN_BASE, postMat); base.position.y = 0.025;
+      const bevel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.022, 8, 32), new THREE.MeshStandardMaterial({ color: 0x9aa1a8, metalness: 0.6, roughness: 0.35 }));
+      bevel.rotation.x = Math.PI / 2; bevel.position.y = 0.05;
+      const col = open ? MAP_BTN_COL : 0x9ca3aa;
+      const capMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: open ? 0.15 : 0.02, roughness: open ? 0.4 : 0.7 });
+      const cap = new THREE.Mesh(G_BTN_CAP, capMat); cap.position.y = 0.09; cap.castShadow = true;
+      const sticker = new THREE.Mesh(G_STICKER, new THREE.MeshBasicMaterial({ map: stickerFor(open ? String(s.n) : 'lock'), transparent: true }));
+      sticker.rotation.x = -Math.PI / 2; sticker.rotation.z = Math.PI / 4; sticker.position.y = 0.051; cap.add(sticker);   // mirando a la cámara
+      btn.add(base, bevel, cap);
+      for (let b = 0; b < 6; b++) { const bo = new THREE.Mesh(G_BOLT, boltMat2); bo.position.set(Math.cos(b * Math.PI / 3) * 0.32, 0.055, Math.sin(b * Math.PI / 3) * 0.32); btn.add(bo); }
+      g.add(btn);
+      if (open && n === undefined && !map.nextCap) map.nextCap = capMat;
+      // estrellas de pie en el borde delantero, de cara a la cámara
+      for (let i = 0; i < (n || 0); i++) {
+        const st = new THREE.Mesh(MAP_STAR_GEO, mapStarMat); st.scale.setScalar(0.12);
+        const lat = (i - (n - 1) / 2) * 0.26;
+        st.position.copy(new THREE.Vector3().addScaledVector(MAP_F, -0.47).addScaledVector(MAP_R, lat)).setY(0.14 + (i === 1 && n === 3 ? 0.05 : 0));
+        st.rotation.y = Math.PI / 4; st.castShadow = true; g.add(st);
+      }
+      pad.add(g); pad.userData.mark = g;
+    });
+  }
   // Visibilidad: el siguiente nivel y los 9 de después; lo demás queda tapado por un muro de nubes
   function mapApplyLimit() {
     const firstOpen = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
@@ -2979,6 +3003,11 @@
     mapFit();
     const nextK = renderMapPins();
     map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
+    mapMarks();
+    // el viajero, de espaldas a la cámara, mira hacia donde sigue el camino (arriba a la derecha o a la izquierda)
+    const ak = map.avatarK, nk = Math.min(SLOTS.length - 1, ak + 1);
+    const dx = ak === nk ? 1 : pathAt(padS(nk))[0] - pathAt(padS(ak))[0];
+    map.avatar.rotation.y = dx >= 0 ? YAW.N : YAW.W;
     const k = focusK ?? map.avatarK;
     const to = mapClamp(padY(k) + 0.1 * map.halfH / COS_E);
     map.y = mapClamp(to - 2.5); map.target = to; map.vy = 0; map.drag = null;
