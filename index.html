@@ -193,62 +193,28 @@
   .primary:hover { background: #2c4a66; color: #fff; }
   .home-row { display: flex; gap: 10px; }
 
-  #map { background: #1f3346; }
-  .worlds { position: absolute; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  .worlds::-webkit-scrollbar { display: none; }
-  .world { position: relative; flex: 0 0 100%; height: 100%; scroll-snap-align: start; overflow: hidden;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-    padding: calc(70px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); box-sizing: border-box; }
-  .wbg { position: absolute; inset: 0; background: linear-gradient(180deg, var(--wtop), var(--wbot) 85%); z-index: -1; }
-  .wbg::before, .wbg::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
-  /* Cielo: nubes blancas que pasan */
-  .w-cielo .wbg::before { background:
-      radial-gradient(60px 26px at 20% 70%, #fff 60%, transparent 62%), radial-gradient(90px 34px at 27% 72%, #fff 60%, transparent 62%),
-      radial-gradient(70px 28px at 70% 30%, rgba(255,255,255,0.9) 60%, transparent 62%), radial-gradient(110px 36px at 78% 33%, rgba(255,255,255,0.9) 60%, transparent 62%),
-      radial-gradient(80px 30px at 45% 90%, rgba(255,255,255,0.85) 60%, transparent 62%);
-    background-size: 900px 100%; animation: drift 60s linear infinite; }
-  /* Dunas: sol bajo y dunas al fondo */
-  .w-dunas .wbg::before { background: radial-gradient(circle at 72% 30%, #fff3c4 0 7%, rgba(255,226,150,0.55) 8%, transparent 22%); }
-  .w-dunas .wbg::after { background:
-      radial-gradient(70% 22% at 20% 100%, #e7a061 98%, transparent 100%), radial-gradient(80% 26% at 85% 104%, #d98a50 98%, transparent 100%);
-    opacity: 0.85; }
-  /* Escarcha: estrellas y nieve que cae */
-  .w-escarcha .wbg::before { background-image: radial-gradient(1.5px 1.5px at 10% 20%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 30% 10%, #fff 50%, transparent 51%),
-      radial-gradient(1.5px 1.5px at 60% 25%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 85% 12%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 75% 40%, #cfe0ff 50%, transparent 51%);
-    background-size: 340px 240px; opacity: 0.8; }
-  .w-escarcha .wbg::after { background-image: radial-gradient(2px 2px at 20% 30%, #fff 50%, transparent 51%), radial-gradient(3px 3px at 60% 70%, rgba(255,255,255,0.8) 50%, transparent 51%),
-      radial-gradient(2px 2px at 80% 20%, #fff 50%, transparent 51%), radial-gradient(2.5px 2.5px at 40% 85%, rgba(255,255,255,0.7) 50%, transparent 51%);
-    background-size: 220px 220px; animation: snow 14s linear infinite; }
-  @keyframes drift { to { background-position: 900px 0; } }
-  @keyframes snow { to { background-position: 40px 220px; } }
-  .world h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 8vw, 44px); letter-spacing: 0.08em; color: var(--wink); text-shadow: 0 2px 0 rgba(0,0,0,0.12); }
-  .world .wstat { font-family: var(--font-display); font-size: 13px; color: var(--wink); opacity: 0.85; margin-top: -10px; }
-  .grid { display: grid; grid-template-columns: repeat(4, 76px); gap: 12px; }
-  @media (max-width: 520px) { .grid { grid-template-columns: repeat(3, 76px); } }
-  .lvl { height: 76px; padding: 0; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    background: rgba(255,255,255,0.82); font-family: var(--font-display); font-size: 22px; color: var(--ink); }
-  .lvl .st { font-family: var(--font-body); font-size: 11px; letter-spacing: 1px; color: var(--star); min-height: 13px; }
-  .lvl .st .off { color: var(--star-off); }
-  .lvl.next { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink); animation: nextPulse 1.6s ease-in-out infinite; }
-  @keyframes nextPulse { 50% { transform: scale(1.06); } }
-  .lvl.locked, .lvl.soon { background: rgba(255,255,255,0.35); color: rgba(31,51,70,0.45); cursor: default; }
-  .lvl.soon .n { font-size: 10px; letter-spacing: 0.04em; }
-  .lvl.soon .st { color: rgba(31,51,70,0.45); font-size: 10px; letter-spacing: 0.04em; }
-  .lvl svg, .lockbig svg { width: 18px; height: 18px; }
-  .world.locked .wbg { filter: grayscale(0.5) brightness(0.9); }
-  .world.locked .grid, .world.locked .wstat { filter: grayscale(1); opacity: 0.4; }
-  .world.locked h2 { opacity: 0.7; }
-  .lockbig { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-  .lockbig > div { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border-radius: 14px; background: rgba(20,30,45,0.72); color: #fff; font-size: 14px; text-align: center; max-width: 240px; }
-  .lockbig svg { width: 40px; height: 40px; }
+  /* Mapa de saltos: el lienzo 3D se ve detrás; aquí solo van las chapas de los niveles y los carteles */
+  #map { background: transparent; touch-action: none; overflow: hidden; cursor: grab; user-select: none; -webkit-user-select: none; }
+  #mapPins { position: absolute; inset: 0; pointer-events: none; }
+  .pin { position: absolute; left: 0; top: 0; pointer-events: auto; width: 44px; height: 44px; padding: 0; border-radius: 50%;
+    display: grid; place-items: center; background: #fff; border: 3px solid var(--ink); color: var(--ink);
+    font-family: var(--font-display); font-size: 18px; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22); will-change: transform; }
+  .pin .n { line-height: 1; display: grid; place-items: center; }
+  .pin .n svg { width: 18px; height: 18px; }
+  .pin .st { position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%); font-family: var(--font-body); font-size: 12px; letter-spacing: 1px;
+    color: var(--star); white-space: nowrap; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
+  .pin .st .off { color: var(--star-off); }
+  .pin.locked, .pin.soon { background: rgba(255, 255, 255, 0.7); border-color: rgba(31, 51, 70, 0.45); color: rgba(31, 51, 70, 0.55); cursor: default; }
+  .pin.next { background: #ffd23f; }
+  .pin.next::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid #fff; animation: pinPulse 1.4s ease-out infinite; }
+  @keyframes pinPulse { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(1.35); } }
+  .wlabel { position: absolute; left: 0; top: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 18px; border-radius: 14px; background: var(--wbg); color: var(--wink); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); border: 2px solid rgba(255, 255, 255, 0.7); text-align: center; }
+  .wlabel b { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; font-weight: 400; display: flex; align-items: center; gap: 6px; }
+  .wlabel span { font-family: var(--font-display); font-size: 12px; opacity: 0.9; max-width: 220px; }
+  .wlabel svg { width: 18px; height: 18px; }
   .map-top { position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: center; gap: 10px; pointer-events: none; }
   .map-top > * { pointer-events: auto; }
-  .wdots { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 10px; }
-  .wdots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; background: rgba(255,255,255,0.5); border: none; }
-  .wdots button.on { background: #fff; transform: scale(1.25); }
-  .warrow { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; font-size: 26px; font-family: var(--font-body); padding: 0; }
-  .warrow.prev { left: max(12px, env(safe-area-inset-left, 0px)); } .warrow.next { right: max(12px, env(safe-area-inset-right, 0px)); }
-  @media (hover: none), (max-width: 520px) { .warrow { display: none; } }
 
   .overlay { display: grid; place-items: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); z-index: 15; }
   #pause { background: linear-gradient(180deg, var(--sky-top), var(--sky-bot) 85%); }   /* opaco: tapa el tablero */
@@ -395,7 +361,7 @@
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
   @keyframes tagInOut { 0% { opacity: 0; transform: translate(-50%, -8px); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -4px); } }
-  @media (prefers-reduced-motion: reduce) { .w-cielo .wbg::before, .w-escarcha .wbg::after, .lvl.next, #splash .logo { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .pin.next::after, #splash .logo { animation: none; } }
 </style>
 </head>
 <body>
@@ -447,14 +413,11 @@
 </div>
 
 <div id="map" class="screen" hidden>
-  <div class="worlds" id="worlds"></div>
+  <div id="mapPins"></div>
   <div class="map-top">
     <button id="mapBack" data-i18n="home">‹ Inicio</button>
     <div class="stats"><span class="stat"><span class="coin"></span><span id="mapCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="mapStars">0</span></span></div>
   </div>
-  <button class="warrow prev" id="wPrev" aria-label="Mundo anterior">‹</button>
-  <button class="warrow next" id="wNext" aria-label="Mundo siguiente">›</button>
-  <div class="wdots" id="wdots"></div>
 </div>
 
 <div id="editor" class="screen" hidden>
@@ -2569,7 +2532,7 @@
   const SLOTS = WORLDS.flatMap((w, wi) => w.levels.map((lv, j) => ({ wi, n: j + 1, lv })));
   const slotOfLevel = lv => SLOTS.findIndex(s => s.lv === lv);
   const CUSTOM = LEVELS.length;   // índice reservado para el mapa que se prueba desde el editor
-  const backFromLevel = () => (L === CUSTOM ? openEditor() : openMap(SLOTS[slotOfLevel(L)].wi));
+  const backFromLevel = () => (L === CUSTOM ? openEditor() : openMap(slotOfLevel(L)));
   const isDone = lv => lv !== null && best[lv] !== undefined;
   const slotUnlocked = k => DEV || k === 0 || (SLOTS[k].lv !== null && isDone(SLOTS[k - 1].lv));
   const worldUnlocked = wi => slotUnlocked(wi * 12);
@@ -2599,57 +2562,313 @@
     clearLevel(); applyTheme(THEMES.cielo); updateStats(); setScreen('home');
   }
 
-  // Carrusel de mundos: cada página tiene su fondo, su nombre y su cuadrícula de 12 niveles
-  let mapWorld = 0;
-  function renderMap() {
-    const box = $('worlds'); box.innerHTML = '';
-    WORLDS.forEach((w, wi) => {
-      const t = THEMES[w.id];
-      const sec = document.createElement('section');
-      sec.className = `world w-${w.id}` + (worldUnlocked(wi) ? '' : ' locked');
-      sec.style.setProperty('--wtop', t.top); sec.style.setProperty('--wbot', t.bot); sec.style.setProperty('--wink', t.ink);
-      const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
-      sec.innerHTML = `<div class="wbg"></div><h2>${tr(w.id)}</h2><div class="wstat">★ ${got} / ${w.levels.length * 3}</div><div class="grid"></div>`;
-      const grid = sec.querySelector('.grid');
-      let nextMarked = false;
-      w.levels.forEach((lv, j) => {
-        const k = wi * 12 + j, b = document.createElement('button');
-        b.className = 'lvl';
-        if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${j + 1}</span><span class="st">${tr('soon')}</span>`; b.disabled = true; }
-        else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="n">${j + 1}</span>${LOCK_SVG}`; b.disabled = true; }
-        else {
-          const n = best[lv];
-          b.innerHTML = `<span class="n">${j + 1}</span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
-          if (n === undefined && !nextMarked) { b.classList.add('next'); nextMarked = true; }
-          b.addEventListener('click', () => startLevel(lv));
-        }
-        b.setAttribute('aria-label', tr('level', { n: j + 1 }));
-        grid.appendChild(b);
-      });
-      if (!worldUnlocked(wi)) {
-        const prev = WORLDS[wi - 1];
-        sec.insertAdjacentHTML('beforeend', `<div class="lockbig"><div>${LOCK_SVG}<span>${tr('unlockWorld', { prev: prev ? tr(prev.id) : '', w: tr(w.id) })}</span></div></div>`);
-      }
-      box.appendChild(sec);
+  // ---------- Mapa de saltos: un camino de islas flotantes que sube por los tres mundos ----------
+  // Cielo abajo, Dunas en medio y Escarcha arriba, en un solo fondo continuo que cambia de color al subir.
+  // Cada nivel es una isla del mismo estilo que el juego; las chapas con el número son botones HTML
+  // que siguen a su isla. Se desplaza arrastrando, con la rueda o con las flechas.
+  const mapScene = new THREE.Scene();
+  const mapCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
+  const mapHemi = new THREE.HemisphereLight(0xeaf6ff, 0x7a8a6a, 0.75); mapScene.add(mapHemi);
+  const mapSun = new THREE.DirectionalLight(0xfff0d8, 0.85);
+  mapScene.add(mapSun, mapSun.target);
+  const MAP_R = new THREE.Vector3(1, 0, -1).normalize();    // derecha en pantalla
+  const MAP_F = new THREE.Vector3(-1, 0, -1).normalize();   // hacia el fondo
+  const MAP_STEP = 1.8, MAP_GAP = 4.6, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
+  const map = { built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
+  const padY = k => k * MAP_STEP + SLOTS[k].wi * MAP_GAP;
+  const padSX = k => 2.0 * Math.sin(k * 0.62);
+  // algo que está d unidades más al fondo se ve más arriba en pantalla: se compensa bajándolo
+  const behind = (sx, d, y) => new THREE.Vector3().addScaledVector(MAP_R, sx).addScaledVector(MAP_F, d).setY(y - d * TAN_E);
+  function padPos(k) {
+    return new THREE.Vector3().addScaledVector(MAP_R, padSX(k)).setY(padY(k));
+  }
+  // Una isla con varias casillas del estilo del juego (sin bidones)
+  function mapIsland(spots, keyBase, w) {
+    const holder = new THREE.Group();
+    spots.forEach(([x, z], i) => {
+      const rnd = rngFor(keyBase + ':' + i);
+      const cell = { key: keyBase + ':' + i, kind: 'normal', base: 'normal', passes: 1, coins: 0, green: theme.greens[Math.floor(rnd() * theme.greens.length)] };
+      const g = makeTile(cell); g.position.set(x, 0, z); holder.add(g);
     });
-    $('wdots').innerHTML = WORLDS.map((w, i) => `<button aria-label="${w.name}" data-i="${i}"></button>`).join('');
-    $('wdots').querySelectorAll('button').forEach(b => b.addEventListener('click', () => scrollToWorld(+b.dataset.i, true)));
-    syncDots();
+    return holder;
   }
-  function scrollToWorld(i, smooth) {
-    mapWorld = Math.max(0, Math.min(WORLDS.length - 1, i));
-    const box = $('worlds');
-    box.scrollTo({ left: mapWorld * box.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
-    syncDots();
+  // Atrezo de cada mundo, fusionado por colores
+  function mapProps(d, wid, x, z, rnd) {
+    const r = (a, b) => a + rnd() * (b - a);
+    const pick = rnd();
+    if (wid === 'cielo') {
+      if (pick < 0.65) {   // árbol redondo
+        const h = r(0.3, 0.45), g1 = [0x5fa843, 0x6fb548, 0x4f9a3a][Math.floor(rnd() * 3)];
+        d.add(DG.box, 0x7a5230, x, h / 2, z, 0, 0, 0, 0.09, h, 0.09);
+        d.add(DG.box, g1, x, h + 0.14, z, 0, r(0, 1), 0, 0.42, 0.3, 0.42);
+        d.add(DG.box, shade(g1, 1.12), x, h + 0.34, z, 0, r(0, 1), 0, 0.28, 0.2, 0.28);
+      } else {             // arbusto con flores
+        d.add(DG.box, 0x6fb548, x, 0.09, z, 0, r(0, 1), 0, 0.26, 0.18, 0.22);
+        d.add(DG.box, 0xff9fc2, x + 0.06, 0.2, z, 0, 0, 0, 0.05, 0.05, 0.05);
+        d.add(DG.box, 0xffffff, x - 0.07, 0.19, z + 0.04, 0, 0, 0, 0.05, 0.05, 0.05);
+      }
+    } else if (wid === 'dunas') {
+      if (pick < 0.55) {   // cactus
+        const h = r(0.4, 0.6);
+        d.add(DG.box, 0x5f9e47, x, h / 2, z, 0, 0, 0, 0.12, h, 0.12);
+        d.add(DG.box, 0x5f9e47, x + 0.11, h * 0.45, z, 0, 0, 0, 0.1, 0.06, 0.07);
+        d.add(DG.box, 0x5f9e47, x + 0.15, h * 0.58, z, 0, 0, 0, 0.07, 0.2, 0.07);
+        d.add(DG.box, 0x528c3d, x - 0.1, h * 0.62, z, 0, 0, 0, 0.09, 0.05, 0.06);
+        d.add(DG.box, 0x528c3d, x - 0.13, h * 0.72, z, 0, 0, 0, 0.06, 0.15, 0.06);
+        d.add(DG.box, 0xff7a8a, x, h + 0.03, z, 0, 0, 0, 0.06, 0.05, 0.06);
+      } else {             // roca de arenisca
+        d.add(DG.box, 0xd9874e, x, 0.12, z, 0, r(0, 1), 0, 0.34, 0.24, 0.28);
+        d.add(DG.box, 0xe8a06a, x + 0.03, 0.29, z, 0, r(0, 1), 0, 0.24, 0.12, 0.2);
+      }
+    } else {
+      if (pick < 0.7) {    // pino nevado
+        d.add(DG.box, 0x5a3a22, x, 0.08, z, 0, 0, 0, 0.07, 0.16, 0.07);
+        [[0.3, 0.24, 0.32], [0.47, 0.18, 0.26], [0.61, 0.12, 0.2]].forEach(([y, rad, h]) => {
+          d.add(DG.cone4, 0x2f6b4f, x, y, z, 0, Math.PI / 4, 0, rad, h, rad);
+          d.add(DG.cone4, 0xf4f8ff, x, y + h * 0.28, z, 0, Math.PI / 4, 0, rad * 0.55, h * 0.45, rad * 0.55);
+        });
+      } else {             // cristales de hielo
+        for (let i = 0; i < 3; i++) d.add(DG.oct, [0xbfe8ff, 0x9fd8f5, 0xe4f6ff][i], x + r(-0.1, 0.1), r(0.1, 0.2), z + r(-0.1, 0.1), r(-0.3, 0.3), r(0, 3), r(-0.3, 0.3), 0.07, r(0.2, 0.35), 0.07);
+      }
+    }
   }
-  function syncDots() { $('wdots').querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === mapWorld)); }
-  $('worlds').addEventListener('scroll', () => {
-    const box = $('worlds'); const i = Math.round(box.scrollLeft / Math.max(1, box.clientWidth));
-    if (i !== mapWorld) { mapWorld = i; syncDots(); }
+  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
+  function mapCloud(size) {
+    const c = new THREE.Group(), n = 3 + Math.floor(Math.random() * 3);
+    for (let j = 0; j < n; j++) {
+      const w = (1 + Math.random() * 0.9) * size, dd = (0.8 + Math.random() * 0.6) * size;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45 * size, dd), mapCloudMat); b.position.set(j * 0.75 * size, Math.random() * 0.2, Math.random() * 0.5); c.add(b);
+      const t = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3 * size, dd * 0.6), mapCloudMat); t.position.set(b.position.x, 0.35 * size, b.position.z); c.add(t);
+    }
+    return c;
+  }
+  function buildMap() {
+    const saved = theme;
+    // islas de los niveles
+    SLOTS.forEach((s, k) => {
+      theme = THEMES[WORLDS[s.wi].id];
+      const isl = mapIsland([[0, 0]], 'mpad' + k);
+      isl.scale.setScalar(1.1); isl.position.copy(padPos(k));
+      isl.userData.base = isl.position.y; isl.userData.ph = rngFor('ph' + k)() * 6;
+      mapScene.add(isl); map.pads.push(isl);
+    });
+    // piedras del camino entre una isla y la siguiente (más piedras al pasar de un mundo a otro)
+    const stoneGeo = new THREE.BoxGeometry(0.3, 0.09, 0.3), stoneBody = new THREE.BoxGeometry(0.24, 0.12, 0.24), stoneTip = new THREE.ConeGeometry(0.14, 0.18, 4);
+    const dirtM = lam(0x8a5a3b), rockM = lam(0x6e5b4e);
+    for (let k = 0; k < SLOTS.length - 1; k++) {
+      const a = padPos(k), b = padPos(k + 1), cross = SLOTS[k].wi !== SLOTS[k + 1].wi;
+      if (!cross) continue;   // dentro de un mundo las islas ya están juntas; las piedras unen un mundo con el siguiente
+      const n = 7;
+      theme = THEMES[WORLDS[SLOTS[k + (cross ? 0 : 1)].wi].id];
+      for (let i = 1; i <= n; i++) {
+        const t = i / (n + 1), p = a.clone().lerp(b, t);
+        p.y -= 0.12;
+        if (cross && t > 0.5) theme = THEMES[WORLDS[SLOTS[k + 1].wi].id];
+        const g = new THREE.Group();
+        const top = new THREE.Mesh(stoneGeo, lam(theme.greens[i % theme.greens.length])); top.castShadow = true;
+        const body = new THREE.Mesh(stoneBody, dirtM); body.position.y = -0.1;
+        const tip = new THREE.Mesh(stoneTip, rockM); tip.rotation.x = Math.PI; tip.rotation.y = Math.PI / 4; tip.position.y = -0.25;
+        g.add(top, body, tip); g.position.copy(p); g.rotation.y = (i % 2 ? 0.2 : -0.15);
+        g.userData = { base: p.y, ph: k + i, slot: k + 1 };
+        mapScene.add(g); map.stones.push(g);
+      }
+    }
+    // islas de paisaje al lado del camino, en el lado contrario a la curva
+    SLOTS.forEach((s, k) => {
+      if (k % 3 !== 1) return;
+      const wid = WORLDS[s.wi].id; theme = THEMES[wid];
+      const rnd = rngFor('scen' + k);
+      const shapes = [[[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [1, 1], [0, 1]]];
+      const spots = shapes[Math.floor(rnd() * shapes.length)];
+      const isl = mapIsland(spots, 'mscen' + k);
+      const d = new Deco();
+      spots.forEach(([x, z]) => { const m = 1 + Math.floor(rnd() * 2); for (let i = 0; i < m; i++) mapProps(d, wid, x + (rnd() - 0.5) * 0.5, z + (rnd() - 0.5) * 0.5, rnd); });
+      d.build(isl);
+      isl.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      const side = padSX(k) > 0 ? -1 : 1;
+      isl.position.copy(behind(side * (3.4 + rnd() * 0.8), 0.6 + rnd() * 1.6, padY(k) - 0.3 - rnd() * 0.6));
+      isl.scale.setScalar(0.8 + rnd() * 0.25);
+      isl.userData.base = isl.position.y; isl.userData.ph = rnd() * 6;
+      mapScene.add(isl); map.pads.push(isl);   // flotan igual que las islas de niveles
+    });
+    // nubes: una franja espesa entre mundos y algunas sueltas por todo el cielo
+    const lastY = padY(SLOTS.length - 1);
+    for (let wi = 0; wi < WORLDS.length; wi++) {
+      const y0 = padY(wi * 12);
+      const bandY = wi === 0 ? y0 - 2.2 : (padY(wi * 12 - 1) + y0) / 2;
+      for (let i = 0; i < (wi === 0 ? 9 : 6); i++) {
+        const c = mapCloud(0.9 + Math.random() * 0.6);
+        c.position.copy(behind(-9 + Math.random() * 16, 3 + Math.random() * 5, bandY - 0.8 + Math.random() * 1.6));
+        c.userData.v = 0.1 + Math.random() * 0.2; mapScene.add(c); map.fx.push(c);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const c = mapCloud(0.6 + Math.random() * 0.5);
+      c.position.copy(behind(-9 + Math.random() * 18, 7 + Math.random() * 6, -2 + Math.random() * (lastY + 4)));
+      c.userData.v = 0.08 + Math.random() * 0.15; mapScene.add(c); map.fx.push(c);
+    }
+    // nieve en Escarcha y polvo dorado en Dunas
+    const pGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+    map.particles = [];
+    [['dunas', 0xffd98f, 0.6], ['escarcha', 0xffffff, 0.9]].forEach(([wid, col, op]) => {
+      const wi = WORLDS.findIndex(w => w.id === wid);
+      const y0 = padY(wi * 12) - 1.5, y1 = padY(wi * 12 + 11) + 1.5;
+      const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op });
+      for (let i = 0; i < 110; i++) {
+        const m = new THREE.Mesh(pGeo, mat);
+        m.position.copy(behind(-8 + Math.random() * 16, -2 + Math.random() * 6, y0 + Math.random() * (y1 - y0)));
+        m.userData = { wid, y0, y1, ph: Math.random() * 6 };
+        mapScene.add(m); map.particles.push(m);
+      }
+    });
+    // el viajero, de pie en la isla del siguiente nivel
+    map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapScene.add(map.avatar);
+    theme = saved;
+    map.built = true;
+  }
+  // Colores del cielo y de la luz según la altura: se mezclan los de los mundos vecinos
+  const _ca = new THREE.Color(), _cb = new THREE.Color();
+  function mapSky(y) {
+    const centers = WORLDS.map((w, wi) => (padY(wi * 12) + padY(wi * 12 + 11)) / 2);
+    let i = 0; while (i < centers.length - 2 && y > centers[i + 1]) i++;
+    const t = Math.max(0, Math.min(1, (y - centers[i]) / (centers[i + 1] - centers[i])));
+    const s = t * t * (3 - 2 * t);
+    const A = THEMES[WORLDS[i].id], B = THEMES[WORLDS[i + 1].id];
+    const mix = (a, b) => '#' + _ca.set(a).lerp(_cb.set(b), s).getHexString();
+    document.body.style.setProperty('--sky-top', mix(A.top, B.top));
+    document.body.style.setProperty('--sky-bot', mix(A.bot, B.bot));
+    mapHemi.color.set(A.hemi[0]).lerp(_cb.set(B.hemi[0]), s);
+    mapHemi.groundColor.set(A.hemi[1]).lerp(_cb.set(B.hemi[1]), s);
+    mapHemi.intensity = A.hemi[2] + (B.hemi[2] - A.hemi[2]) * s + 0.05;
+    mapSun.color.set(A.sun[0]).lerp(_cb.set(B.sun[0]), s);
+    mapSun.intensity = A.sun[1] + (B.sun[1] - A.sun[1]) * s;
+    mapCloudMat.color.set(A.cloud).lerp(_cb.set(B.cloud), s);
+    const night = s > 0.5 ? B.ink === '#ffffff' : A.ink === '#ffffff';
+    document.body.classList.toggle('map-night', night);
+  }
+  function mapFit() {
+    const w = innerWidth, h = innerHeight, asp = w / h;
+    renderer.setSize(w, h, false);
+    map.halfW = asp < 1 ? 4.6 : Math.max(5.5 * asp, 6);
+    map.halfH = map.halfW / asp;
+    if (asp >= 1) { map.halfH = 6.2; map.halfW = map.halfH * asp; }
+    Object.assign(mapCam, { left: -map.halfW, right: map.halfW, top: map.halfH, bottom: -map.halfH });
+    mapCam.updateProjectionMatrix();
+    map.min = padY(0) + 0.62 * map.halfH / COS_E;
+    map.max = Math.max(map.min, padY(SLOTS.length - 1) - 0.5 * map.halfH / COS_E);
+  }
+  const mapClamp = y => Math.max(map.min, Math.min(map.max, y));
+  // Chapas de los niveles y carteles de los mundos
+  function renderMapPins() {
+    const box = $('mapPins'); box.innerHTML = '';
+    let nextK = -1;
+    SLOTS.forEach((s, k) => {
+      const b = document.createElement('button'), lv = s.lv;
+      b.className = 'pin'; b.dataset.k = k;
+      b.setAttribute('aria-label', `${tr(WORLDS[s.wi].id)} · ${tr('level', { n: s.n })}`);
+      if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${s.n}</span>`; b.disabled = true; }
+      else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="n">${LOCK_SVG}</span>`; b.disabled = true; }
+      else {
+        const n = best[lv];
+        b.innerHTML = `<span class="n">${s.n}</span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
+        if (n === undefined && nextK < 0) { b.classList.add('next'); nextK = k; }
+        b.addEventListener('click', e => { if (map.moved > 8) { e.preventDefault(); return; } startLevel(lv); });
+      }
+      box.appendChild(b);
+    });
+    WORLDS.forEach((w, wi) => {
+      const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
+      const el = document.createElement('div');
+      el.className = 'wlabel' + (worldUnlocked(wi) ? '' : ' locked'); el.dataset.wi = wi;
+      const t = THEMES[w.id];
+      el.style.setProperty('--wink', t.ink); el.style.setProperty('--wbg', t.top);
+      el.innerHTML = worldUnlocked(wi)
+        ? `<b>${tr(w.id)}</b><span>★ ${got} / ${w.levels.length * 3}</span>`
+        : `<b>${LOCK_SVG} ${tr(w.id)}</b><span>${tr('unlockWorld', { prev: wi ? tr(WORLDS[wi - 1].id) : '', w: tr(w.id) })}</span>`;
+      box.appendChild(el);
+    });
+    return nextK;
+  }
+  const _pv = new THREE.Vector3();
+  function placeMapPins() {
+    const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
+    const put = (el, v) => {
+      _pv.copy(v).project(mapCam);
+      const x = (_pv.x + 1) * W2, y = (1 - _pv.y) * H2;
+      const off = y < -80 || y > innerHeight + 80;
+      el.style.visibility = off ? 'hidden' : '';
+      if (!off) el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+    };
+    for (const el of box.children) {
+      if (el.dataset.k !== undefined) { const k = +el.dataset.k, p = map.pads[k].position; put(el, _pv.set(p.x, p.y + (k === map.avatarK ? 1.15 : 0.62), p.z)); }
+      else { const wi = +el.dataset.wi; put(el, new THREE.Vector3(0, wi === 0 ? padY(0) - 1.6 : (padY(wi * 12 - 1) + padY(wi * 12)) / 2 + 0.2, 0)); }
+    }
+  }
+  function updateMap(dt, time) {
+    if (map.drag === null) {
+      if (map.target !== null) {
+        map.y += (map.target - map.y) * Math.min(1, dt * 4);
+        if (Math.abs(map.target - map.y) < 0.005) { map.y = map.target; map.target = null; }
+      } else if (Math.abs(map.vy) > 0.01) {
+        map.y = mapClamp(map.y + map.vy * dt); map.vy *= Math.pow(0.04, dt);
+      }
+    }
+    const off = new THREE.Vector3(Math.cos(AZ) * Math.cos(ELEV), Math.sin(ELEV), Math.sin(AZ) * Math.cos(ELEV)).multiplyScalar(60);
+    mapCam.position.set(off.x, map.y + off.y, off.z); mapCam.lookAt(0, map.y, 0); mapCam.updateMatrixWorld();
+    mapSun.position.set(-4, map.y + 12, 6); mapSun.target.position.set(0, map.y, 0); mapSun.target.updateMatrixWorld();
+    for (const p of map.pads) p.position.y = p.userData.base + 0.06 * Math.sin(time * 0.9 + p.userData.ph);
+    for (const s of map.stones) s.position.y = s.userData.base + 0.05 * Math.sin(time * 1.3 + s.userData.ph);
+    for (const c of map.fx) { c.position.addScaledVector(MAP_R, c.userData.v * dt); if (c.position.dot(MAP_R) > 11) c.position.addScaledVector(MAP_R, -22); }
+    for (const m of map.particles) {
+      const u = m.userData;
+      if (u.wid === 'escarcha') { m.position.y -= dt * 0.6; m.position.addScaledVector(MAP_R, Math.sin(time + u.ph) * dt * 0.2); if (m.position.y < u.y0) m.position.y = u.y1; }
+      else { m.position.addScaledVector(MAP_R, dt * 0.4); m.position.y += Math.sin(time * 0.8 + u.ph) * dt * 0.12; if (m.position.dot(MAP_R) > 8) m.position.addScaledVector(MAP_R, -16); }
+    }
+    if (map.avatar && map.avatarK >= 0) {
+      const p = map.pads[map.avatarK].position;
+      map.avatar.position.set(p.x, p.y + 0.0, p.z);
+      map.avatar.userData.body.position.y = Math.abs(Math.sin(time * 2.2)) * 0.05;
+    }
+    mapSky(map.y);
+    placeMapPins();
+  }
+  // Desplazamiento: arrastrar (con inercia), rueda y teclado
+  const mapUnitsPerPx = () => (2 * map.halfH / innerHeight) / COS_E;
+  $('map').addEventListener('pointerdown', e => {
+    if (e.target.closest('.map-top')) return;
+    map.drag = { y: e.clientY, t: performance.now() }; map.moved = 0; map.vy = 0; map.target = null;
   });
-  function openMap(wi) {
-    clearLevel(); updateStats(); renderMap(); setScreen('map');
-    requestAnimationFrame(() => scrollToWorld(wi, false));
+  addEventListener('pointermove', e => {
+    if (map.drag === null) return;
+    const dy = e.clientY - map.drag.y, now = performance.now();
+    map.moved += Math.abs(dy);
+    map.y = mapClamp(map.y + dy * mapUnitsPerPx());
+    const v = dy * mapUnitsPerPx() / Math.max(1, now - map.drag.t) * 1000;
+    map.vy = map.vy * 0.6 + v * 0.4;
+    map.drag = { y: e.clientY, t: now };
+  });
+  addEventListener('pointerup', () => { if (map.drag !== null) { if (performance.now() - map.drag.t > 80) map.vy = 0; map.drag = null; } });
+  addEventListener('pointercancel', () => { map.drag = null; });
+  $('map').addEventListener('wheel', e => { e.preventDefault(); map.target = null; map.vy = 0; map.y = mapClamp(map.y - e.deltaY * mapUnitsPerPx() * 0.8); }, { passive: false });
+  addEventListener('keydown', e => {
+    if (document.body.dataset.screen !== 'map') return;
+    const step = { ArrowUp: 2, ArrowDown: -2, PageUp: 8, PageDown: -8 }[e.key];
+    if (step) { e.preventDefault(); map.vy = 0; map.target = mapClamp((map.target ?? map.y) + step); }
+  });
+  addEventListener('resize', () => { if (document.body.dataset.screen === 'map') { mapFit(); map.y = mapClamp(map.y); } });
+
+  // Abre el mapa centrado en un nivel (el que acabas de jugar o el siguiente pendiente)
+  function openMap(focusK) {
+    clearLevel(); updateStats();
+    if (!map.built) buildMap();
+    setScreen('map');
+    mapFit();
+    const nextK = renderMapPins();
+    map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
+    const k = focusK ?? map.avatarK;
+    const to = mapClamp(padY(k) + 0.1 * map.halfH / COS_E);
+    map.y = mapClamp(to - 2.5); map.target = to; map.vy = 0; map.drag = null;
+    updateMap(0, clock.elapsedTime);
   }
   function startLevel(lv) {
     const slot = SLOTS[slotOfLevel(lv)];
@@ -2716,12 +2935,10 @@
     // Abre el mapa en el mundo del siguiente nivel pendiente
     let k = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
     if (k < 0) k = 0;
-    openMap(SLOTS[k].wi);
+    openMap(k);
   });
   $('settingsBtn').addEventListener('click', openSettings);
   $('mapBack').addEventListener('click', openHome);
-  $('wPrev').addEventListener('click', () => scrollToWorld(mapWorld - 1, true));
-  $('wNext').addEventListener('click', () => scrollToWorld(mapWorld + 1, true));
   $('pauseBtn').addEventListener('click', pause);
   $('resumeBtn').addEventListener('click', resume);
   $('pRestart').addEventListener('click', () => { $('pause').hidden = true; phase = pausedFrom || 'idle'; restart(); });
@@ -2735,7 +2952,6 @@
     $('result').hidden = true;
     liftOff(() => startLevel(n.lv));
   });
-  addEventListener('resize', () => { if (document.body.dataset.screen === 'map') scrollToWorld(mapWorld, false); });
 
 
   // ---------- Editor de mapas ----------
@@ -3324,7 +3540,8 @@
       if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
     }
     for (const cl of clouds) { cl.position.x += cl.userData.v * wdt; if (cl.position.x > 14) cl.position.x = -14; }
-    renderer.render(scene, camera);
+    if (document.body.dataset.screen === 'map' && map.built) { updateMap(dt, time); renderer.render(mapScene, mapCam); }
+    else renderer.render(scene, camera);
     requestAnimationFrame(loop);
   }
   applyI18n();
