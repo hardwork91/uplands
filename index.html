@@ -196,6 +196,11 @@
   /* Mapa de saltos: el lienzo 3D se ve detrás; aquí solo van las chapas de los niveles y los carteles */
   #map { background: transparent; touch-action: none; overflow: hidden; cursor: grab; user-select: none; -webkit-user-select: none; }
   #mapPins { position: absolute; inset: 0; pointer-events: none; }
+  /* velo de nubes sobre los niveles que aún no se ven: opaco arriba y con borde algodonoso abajo */
+  #mapFog { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: var(--fog, #fff); }
+  #mapFog::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 26px; margin-top: -1px;
+    background: radial-gradient(28px 22px at 14px 0, var(--fog, #fff) 98%, transparent 100%) 0 0 / 46px 26px repeat-x;
+    opacity: 1; }
   .pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 0; border: none; background: transparent; box-shadow: none; border-radius: 18px; will-change: transform;
     backdrop-filter: none; -webkit-backdrop-filter: none; }   /* sin el desenfoque de los botones normales: se ve la isla */
   .pin:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
@@ -420,6 +425,7 @@
 
 <div id="map" class="screen" hidden>
   <div id="mapPins"></div>
+  <div id="mapFog" hidden></div>
   <div class="map-top">
     <button id="mapBack" data-i18n="home">‹ Inicio</button>
     <div class="stats"><span class="stat"><span class="coin"></span><span id="mapCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="mapStars">0</span></span></div>
@@ -2591,7 +2597,7 @@
   // El camino es una serpiente: tramos rectos de un lado a otro unidos por curvas en los extremos,
   // y los niveles van repartidos a lo largo de él a distancias iguales
   const MAP_SP = 3.3, MAP_ROW = 5.4, MAP_GAPS = 4.2, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
-  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
+  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, limitK: 99, wallY: null, avatar: null, drag: null, moved: 0 };
   // Se precalcula como una polilínea con su longitud acumulada, para repartir los niveles a distancias iguales.
   // Curvas: medias elipses más altas que anchas (map.rx de ancho, media fila de alto)
   let pathPts = null;
@@ -2671,18 +2677,19 @@
     }
   }
   const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
-  function mapCloud(size) {
+  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x2a2a2a });   // muro de nubes: opaco, tapa lo que aún no se ve
+  function mapCloud(size, mat = mapCloudMat) {
     const c = new THREE.Group(), n = 3 + Math.floor(Math.random() * 3);
     for (let j = 0; j < n; j++) {
       const w = (1 + Math.random() * 0.9) * size, dd = (0.8 + Math.random() * 0.6) * size;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45 * size, dd), mapCloudMat); b.position.set(j * 0.75 * size, Math.random() * 0.2, Math.random() * 0.5); c.add(b);
-      const t = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3 * size, dd * 0.6), mapCloudMat); t.position.set(b.position.x, 0.35 * size, b.position.z); c.add(t);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45 * size, dd), mat); b.position.set(j * 0.75 * size, Math.random() * 0.2, Math.random() * 0.5); c.add(b);
+      const t = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3 * size, dd * 0.6), mat); t.position.set(b.position.x, 0.35 * size, b.position.z); c.add(t);
     }
     return c;
   }
   function clearMap() {
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
-    map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.built = false;
+    map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
   }
   function buildMap() {
     const saved = theme;
@@ -2727,10 +2734,13 @@
       const dd = new Deco();
       spots.forEach(([sx, sz]) => { const m = 1 + Math.floor(rnd() * 2); for (let i = 0; i < m; i++) mapProps(dd, wid, sx + (rnd() - 0.5) * 0.5, sz + (rnd() - 0.5) * 0.5, rnd); });
       dd.build(isl);
-      isl.traverse(o => { if (o.isMesh) o.castShadow = true; });
       // centrada en su sitio (las casillas van de 0 a 1)
       isl.children.forEach(c => { c.position.x -= 0.5; c.position.z -= 0.5; });
       isl.position.copy(behind(x, d, y)); isl.scale.setScalar(sc);
+      // atenuadas hacia el color del cielo de su mundo, como si estuvieran lejos (más cuanto más al fondo)
+      const haze = new THREE.Color(theme.top).lerp(new THREE.Color(theme.bot), 0.55), k = Math.min(0.62, 0.34 + d * 0.1);
+      isl.traverse(o => { if (!o.isMesh) return; o.castShadow = false; o.material = o.material.clone();
+        o.material.color.lerp(haze, k); if (o.material.emissive) o.material.emissive.copy(haze).multiplyScalar(k * 0.35); });
       isl.userData.base = isl.position.y; isl.userData.ph = rnd() * 6;
       mapScene.add(isl); map.pads.push(isl);   // flotan igual que las islas de niveles
     };
@@ -2770,6 +2780,16 @@
         mapScene.add(m); map.particles.push(m);
       }
     });
+    // muro de nubes que tapa los niveles que aún no se pueden ver (se coloca al abrir el mapa)
+    map.fog = new THREE.Group();
+    // solo el borde: por encima, un velo del color de las nubes (#mapFog) tapa todo lo demás
+    const n = Math.ceil((2 * map.halfW + 6) / 1.3);
+    for (let i = 0; i < n; i++) {
+      const c = mapCloud(0.8 + Math.random() * 0.5, mapFogMat);
+      c.position.copy(behind(-map.halfW - 4 + i * 1.3 + Math.random() * 0.6, -1 + Math.random() * 2, Math.random() * 0.5));
+      map.fog.add(c);
+    }
+    mapScene.add(map.fog);
     // el viajero, de pie en la isla del siguiente nivel
     map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapScene.add(map.avatar);
     theme = saved;
@@ -2792,6 +2812,7 @@
     mapSun.color.set(A.sun[0]).lerp(_cb.set(B.sun[0]), s);
     mapSun.intensity = A.sun[1] + (B.sun[1] - A.sun[1]) * s;
     mapCloudMat.color.set(A.cloud).lerp(_cb.set(B.cloud), s);
+    mapFogMat.color.copy(mapCloudMat.color).lerp(_cb.set(0xffffff), 0.35);
     const night = s > 0.5 ? B.ink === '#ffffff' : A.ink === '#ffffff';
     document.body.classList.toggle('map-night', night);
   }
@@ -2807,6 +2828,7 @@
     mapCam.updateProjectionMatrix();
     map.min = padY(0) + 0.62 * map.halfH / COS_E;
     map.max = Math.max(map.min, padY(SLOTS.length - 1) - 0.5 * map.halfH / COS_E);
+    if (map.wallY !== null && map.wallY !== undefined) map.max = Math.max(map.min, Math.min(map.max, map.wallY - 0.55 * map.halfH / COS_E));
   }
   const mapClamp = y => Math.max(map.min, Math.min(map.max, y));
   // Chapas de los niveles y carteles de los mundos
@@ -2814,6 +2836,7 @@
     const box = $('mapPins'); box.innerHTML = '';
     let nextK = -1;
     SLOTS.forEach((s, k) => {
+      if (k > map.limitK) return;   // detrás de las nubes
       const b = document.createElement('button'), lv = s.lv;
       b.className = 'pin'; b.dataset.k = k;
       b.setAttribute('aria-label', `${tr(WORLDS[s.wi].id)} · ${tr('level', { n: s.n })}`);
@@ -2828,6 +2851,7 @@
       box.appendChild(b);
     });
     WORLDS.forEach((w, wi) => {
+      if (wi * 12 > map.limitK) return;
       const got = w.levels.reduce((a, lv) => a + (lv !== null && best[lv] ? best[lv] : 0), 0);
       const el = document.createElement('div');
       el.className = 'wlabel' + (worldUnlocked(wi) ? '' : ' locked'); el.dataset.wi = wi;
@@ -2842,6 +2866,12 @@
   }
   const _pv = new THREE.Vector3(), _up = new THREE.Vector3(0, 0.3, 0);
   function placeMapPins() {
+    if (map.wallY !== null) {
+      _pv.set(0, map.wallY + 0.35, 0).project(mapCam);
+      const fy = (1 - _pv.y) * innerHeight / 2, f = $('mapFog');
+      f.style.height = Math.max(0, fy) + 'px';
+      f.style.setProperty('--fog', '#' + mapFogMat.color.getHexString());
+    }
     const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
     const put = (el, v) => {
       _pv.copy(v).project(mapCam);
@@ -2918,17 +2948,35 @@
   addEventListener('resize', () => {
     if (document.body.dataset.screen !== 'map') return;
     mapFit();
-    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); renderMapPins(); }
+    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); mapApplyLimit(); mapFit(); renderMapPins(); }
     map.y = mapClamp(map.y);
   });
 
   // Abre el mapa centrado en un nivel (el que acabas de jugar o el siguiente pendiente)
+  // Visibilidad: el siguiente nivel y los 9 de después; lo demás queda tapado por un muro de nubes
+  function mapApplyLimit() {
+    const firstOpen = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
+    const last = SLOTS.length - 1;
+    map.limitK = DEV || firstOpen < 0 ? last : Math.min(last, firstOpen + 9);
+    // el muro es horizontal: si el último visible comparte fila con los siguientes, se enseña la fila entera
+    while (map.limitK < last && padY(map.limitK + 1) - padY(map.limitK) < 0.5) map.limitK++;
+    map.wallY = map.limitK < last ? padY(map.limitK) + 2.3 : null;
+    map.fog.visible = map.wallY !== null;
+    if (map.fog.visible) map.fog.position.y = map.wallY;
+    const top = map.wallY === null ? Infinity : map.wallY;
+    map.pads.forEach((o, i) => { o.visible = i < SLOTS.length ? i <= map.limitK : o.userData.base < top; });
+    for (const o of map.stones) o.visible = o.userData.slot <= map.limitK;
+    for (const m of map.particles) m.visible = m.userData.y0 < top;
+    $('mapFog').hidden = map.wallY === null;
+  }
   function openMap(focusK) {
     clearLevel(); updateStats();
     setScreen('map');
     mapFit();
     if (map.built && map.builtAmp !== map.amp + ':' + map.rx) clearMap();
     if (!map.built) buildMap();
+    mapApplyLimit();
+    mapFit();
     const nextK = renderMapPins();
     map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
     const k = focusK ?? map.avatarK;
