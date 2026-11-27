@@ -2588,15 +2588,38 @@
   mapScene.add(mapSun, mapSun.target);
   const MAP_R = new THREE.Vector3(1, 0, -1).normalize();    // derecha en pantalla
   const MAP_F = new THREE.Vector3(-1, 0, -1).normalize();   // hacia el fondo
-  const MAP_STEP = 1.6, MAP_GAP = 4.6, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
-  const map = { amp: 3, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
-  const padY = k => k * MAP_STEP + SLOTS[k].wi * MAP_GAP;
-  const padSX = k => map.amp * Math.sin(k * 0.5);   // curvas anchas: la amplitud se ajusta al ancho de la pantalla
+  // El camino es una serpiente: tramos rectos de un lado a otro unidos por curvas en los extremos,
+  // y los niveles van repartidos a lo largo de él a distancias iguales
+  const MAP_SP = 3.3, MAP_ROW = 5.4, MAP_GAPS = 4.2, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
+  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
+  // Se precalcula como una polilínea con su longitud acumulada, para repartir los niveles a distancias iguales.
+  // Curvas: medias elipses más altas que anchas (map.rx de ancho, media fila de alto)
+  let pathPts = null;
+  function buildPath() {
+    const A = map.amp, Rx = map.rx, Ry = MAP_ROW / 2, pts = [];
+    for (let i = 0; i < 40; i++) {
+      const dir = i % 2 === 0 ? 1 : -1, y0 = i * MAP_ROW;
+      for (let u = 0; u < 1; u += 0.05) pts.push([-dir * A + dir * 2 * A * u, y0]);
+      for (let t = 0; t < Math.PI; t += Math.PI / 24) pts.push([dir * A + dir * Rx * Math.sin(t), y0 + Ry - Ry * Math.cos(t)]);
+    }
+    let acc = 0;
+    pathPts = pts.map((p, i) => { if (i) acc += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]); return [p[0], p[1], acc]; });
+    pathPts.key = A + ':' + Rx;
+  }
+  function pathAt(s) {
+    if (!pathPts || pathPts.key !== map.amp + ':' + map.rx) buildPath();
+    let lo = 0, hi = pathPts.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pathPts[m][2] <= s) lo = m; else hi = m; }
+    const a = pathPts[lo], b = pathPts[hi], t = Math.max(0, Math.min(1, (s - a[2]) / Math.max(1e-6, b[2] - a[2])));
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  }
+  const rowLen = () => { pathAt(0); return pathPts[Math.round(pathPts.length / 40)][2]; };
+  const padS = k => map.amp + k * MAP_SP + SLOTS[k].wi * MAP_GAPS;   // el primero, en el centro de la primera fila
+  const pathPos = s => { const [x, y] = pathAt(s); return new THREE.Vector3().addScaledVector(MAP_R, x).setY(y); };
+  const padPos = k => pathPos(padS(k));
+  const padY = k => pathAt(padS(k))[1];
   // algo que está d unidades más al fondo se ve más arriba en pantalla: se compensa bajándolo
   const behind = (sx, d, y) => new THREE.Vector3().addScaledVector(MAP_R, sx).addScaledVector(MAP_F, d).setY(y - d * TAN_E);
-  function padPos(k) {
-    return new THREE.Vector3().addScaledVector(MAP_R, padSX(k)).setY(padY(k));
-  }
   // Una isla con varias casillas del estilo del juego (sin bidones)
   function mapIsland(spots, keyBase, w) {
     const holder = new THREE.Group();
@@ -2663,7 +2686,7 @@
   }
   function buildMap() {
     const saved = theme;
-    map.builtAmp = map.amp;
+    map.builtAmp = map.amp + ':' + map.rx;
     // islas de los niveles
     SLOTS.forEach((s, k) => {
       theme = THEMES[WORLDS[s.wi].id];
@@ -2676,12 +2699,11 @@
     const stoneGeo = new THREE.BoxGeometry(0.3, 0.09, 0.3), stoneBody = new THREE.BoxGeometry(0.24, 0.12, 0.24), stoneTip = new THREE.ConeGeometry(0.14, 0.18, 4);
     const dirtM = lam(0x8a5a3b), rockM = lam(0x6e5b4e);
     for (let k = 0; k < SLOTS.length - 1; k++) {
-      const a = padPos(k), b = padPos(k + 1), cross = SLOTS[k].wi !== SLOTS[k + 1].wi;
-      if (!cross) continue;   // dentro de un mundo las islas ya están juntas; las piedras unen un mundo con el siguiente
-      const n = 7;
+      const sa = padS(k), sb = padS(k + 1), cross = SLOTS[k].wi !== SLOTS[k + 1].wi;
+      const n = cross ? 6 : 2;   // piedras que marcan el camino (más al pasar de un mundo a otro)
       theme = THEMES[WORLDS[SLOTS[k + (cross ? 0 : 1)].wi].id];
       for (let i = 1; i <= n; i++) {
-        const t = i / (n + 1), p = a.clone().lerp(b, t);
+        const t = i / (n + 1), p = pathPos(sa + (sb - sa) * t);
         p.y -= 0.12;
         if (cross && t > 0.5) theme = THEMES[WORLDS[SLOTS[k + 1].wi].id];
         const g = new THREE.Group();
@@ -2693,33 +2715,39 @@
         mapScene.add(g); map.stones.push(g);
       }
     }
-    // islas de paisaje al lado del camino, en el lado contrario a la curva
-    SLOTS.forEach((s, k) => {
-      if (Math.abs(padSX(k)) < map.amp * 0.75 && k % 4 !== 3) return;   // junto a las curvas, en el hueco que deja el camino
-      const wid = WORLDS[s.wi].id; theme = THEMES[wid];
-      const rnd = rngFor('scen' + k);
-      const shapes = [[[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [1, 1], [0, 1]]];
+    // islas de paisaje: dentro de cada curva del camino y, en pantallas anchas, también por fuera
+    const lastS = padS(SLOTS.length - 1), rows = Math.floor(lastS / rowLen()) + 1;
+    const worldAtY = y => { let k = 0; while (k < SLOTS.length - 1 && padY(k + 1) <= y + 0.5) k++; return SLOTS[k].wi; };
+    const shapes = [[[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [1, 1], [0, 1]], [[0, 0], [0, 1]]];
+    const addScenery = (key, x, d, y, sc) => {
+      const wid = WORLDS[worldAtY(y)].id; theme = THEMES[wid];
+      const rnd = rngFor(key);
       const spots = shapes[Math.floor(rnd() * shapes.length)];
-      const isl = mapIsland(spots, 'mscen' + k);
-      const d = new Deco();
-      spots.forEach(([x, z]) => { const m = 1 + Math.floor(rnd() * 2); for (let i = 0; i < m; i++) mapProps(d, wid, x + (rnd() - 0.5) * 0.5, z + (rnd() - 0.5) * 0.5, rnd); });
-      d.build(isl);
+      const isl = mapIsland(spots, key);
+      const dd = new Deco();
+      spots.forEach(([sx, sz]) => { const m = 1 + Math.floor(rnd() * 2); for (let i = 0; i < m; i++) mapProps(dd, wid, sx + (rnd() - 0.5) * 0.5, sz + (rnd() - 0.5) * 0.5, rnd); });
+      dd.build(isl);
       isl.traverse(o => { if (o.isMesh) o.castShadow = true; });
-      const far = Math.abs(padSX(k)) < map.amp * 0.75;   // las de lejos solo se ven en pantallas anchas
-      const side = padSX(k) > 0 ? -1 : 1;
-      isl.position.copy(behind(far ? (rnd() < 0.5 ? -1 : 1) * (map.amp + 3 + rnd() * 1.5) : side * (map.amp * 0.87 + rnd() * 0.8), 0.6 + rnd() * 1.6, padY(k) - 0.3 - rnd() * 0.6));
-      isl.scale.setScalar(0.8 + rnd() * 0.25);
+      // centrada en su sitio (las casillas van de 0 a 1)
+      isl.children.forEach(c => { c.position.x -= 0.5; c.position.z -= 0.5; });
+      isl.position.copy(behind(x, d, y)); isl.scale.setScalar(sc);
       isl.userData.base = isl.position.y; isl.userData.ph = rnd() * 6;
       mapScene.add(isl); map.pads.push(isl);   // flotan igual que las islas de niveles
-    });
+    };
+    for (let i = 0; i < rows; i++) {
+      const dir = i % 2 === 0 ? 1 : -1, rnd = rngFor('row' + i);
+      addScenery('mturn' + i, dir * (map.amp - 0.2), 1.0, i * MAP_ROW + MAP_ROW / 2 - 0.6, 0.6 + rnd() * 0.15);
+      if (map.amp > 3) addScenery('mmid' + i, (rnd() - 0.5) * map.amp, 1.4, i * MAP_ROW + MAP_ROW / 2 - 0.4, 0.6 + rnd() * 0.2);
+      addScenery('mfar' + i, -dir * (map.amp + map.rx + 2.6 + rnd() * 1.5), 0.8 + rnd(), i * MAP_ROW + MAP_ROW / 2 - 0.5 + rnd(), 0.75 + rnd() * 0.25);
+    }
     // nubes: una franja espesa entre mundos y algunas sueltas por todo el cielo
     const lastY = padY(SLOTS.length - 1);
     for (let wi = 0; wi < WORLDS.length; wi++) {
       const y0 = padY(wi * 12);
       const bandY = wi === 0 ? y0 - 2.2 : (padY(wi * 12 - 1) + y0) / 2;
-      for (let i = 0; i < (wi === 0 ? 9 : 6); i++) {
+      for (let i = 0; i < (wi === 0 ? 8 : 4); i++) {
         const c = mapCloud(0.9 + Math.random() * 0.6);
-        c.position.copy(behind(-9 + Math.random() * 16, 3 + Math.random() * 5, bandY - 0.8 + Math.random() * 1.6));
+        c.position.copy(behind(-9 + Math.random() * 16, 6 + Math.random() * 5, bandY - 0.8 + Math.random() * 1.6));
         c.userData.v = 0.1 + Math.random() * 0.2; mapScene.add(c); map.fx.push(c);
       }
     }
@@ -2773,7 +2801,8 @@
     map.halfW = asp < 1 ? 4.6 : Math.max(5.5 * asp, 6);
     map.halfH = map.halfW / asp;
     if (asp >= 1) { map.halfH = 6.2; map.halfW = map.halfH * asp; }
-    map.amp = Math.round(Math.max(3, Math.min(6.5, map.halfW - 1.8)) * 2) / 2;   // en pasos de 0,5 para no reconstruir por nada
+    map.rx = asp < 1 ? 1.5 : 2;
+    map.amp = Math.round(Math.max(1.5, Math.min(4.5, map.halfW - map.rx - 0.9)) * 2) / 2;   // en pasos de 0,5 para no reconstruir por nada
     Object.assign(mapCam, { left: -map.halfW, right: map.halfW, top: map.halfH, bottom: -map.halfH });
     mapCam.updateProjectionMatrix();
     map.min = padY(0) + 0.62 * map.halfH / COS_E;
@@ -2811,7 +2840,7 @@
     });
     return nextK;
   }
-  const _pv = new THREE.Vector3();
+  const _pv = new THREE.Vector3(), _up = new THREE.Vector3(0, 0.3, 0);
   function placeMapPins() {
     const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
     const put = (el, v) => {
@@ -2832,7 +2861,7 @@
         el.style.visibility = off ? 'hidden' : '';
         if (!off) { el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - top).toFixed(1)}px)`; }
       }
-      else { const wi = +el.dataset.wi; put(el, new THREE.Vector3(0, wi === 0 ? padY(0) - 1.6 : (padY(wi * 12 - 1) + padY(wi * 12)) / 2 + 0.2, 0)); }
+      else { const wi = +el.dataset.wi; put(el, wi === 0 ? padPos(0).setY(padY(0) - 1.7) : pathPos((padS(wi * 12 - 1) + padS(wi * 12)) / 2).add(_up)); }
     }
   }
   function updateMap(dt, time) {
@@ -2889,7 +2918,7 @@
   addEventListener('resize', () => {
     if (document.body.dataset.screen !== 'map') return;
     mapFit();
-    if (map.built && map.builtAmp !== map.amp) { clearMap(); buildMap(); renderMapPins(); }
+    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); renderMapPins(); }
     map.y = mapClamp(map.y);
   });
 
@@ -2898,7 +2927,7 @@
     clearLevel(); updateStats();
     setScreen('map');
     mapFit();
-    if (map.built && map.builtAmp !== map.amp) clearMap();
+    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) clearMap();
     if (!map.built) buildMap();
     const nextK = renderMapPins();
     map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
