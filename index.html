@@ -196,17 +196,22 @@
   /* Mapa de saltos: el lienzo 3D se ve detrás; aquí solo van las chapas de los niveles y los carteles */
   #map { background: transparent; touch-action: none; overflow: hidden; cursor: grab; user-select: none; -webkit-user-select: none; }
   #mapPins { position: absolute; inset: 0; pointer-events: none; }
-  .pin { position: absolute; left: 0; top: 0; pointer-events: auto; width: 44px; height: 44px; padding: 0; border-radius: 50%;
+  .pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 0; border: none; background: transparent; box-shadow: none; border-radius: 18px; will-change: transform;
+    backdrop-filter: none; -webkit-backdrop-filter: none; }   /* sin el desenfoque de los botones normales: se ve la isla */
+  .pin:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .pin .badge { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box;
     display: grid; place-items: center; background: #fff; border: 3px solid var(--ink); color: var(--ink);
-    font-family: var(--font-display); font-size: 18px; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22); will-change: transform; }
+    font-family: var(--font-display); font-size: 18px; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22); transition: transform 0.12s; }
+  .pin:not(:disabled):hover .badge, .pin:not(:disabled):active .badge { transform: translateX(-50%) scale(1.1); }
   .pin .n { line-height: 1; display: grid; place-items: center; }
   .pin .n svg { width: 18px; height: 18px; }
-  .pin .st { position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%); font-family: var(--font-body); font-size: 12px; letter-spacing: 1px;
+  .pin .st { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); font-family: var(--font-body); font-size: 12px; letter-spacing: 1px;
     color: var(--star); white-space: nowrap; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
   .pin .st .off { color: var(--star-off); }
-  .pin.locked, .pin.soon { background: rgba(255, 255, 255, 0.7); border-color: rgba(31, 51, 70, 0.45); color: rgba(31, 51, 70, 0.55); cursor: default; }
-  .pin.next { background: #ffd23f; }
-  .pin.next::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid #fff; animation: pinPulse 1.4s ease-out infinite; }
+  .pin:disabled { cursor: default; }
+  .pin.locked .badge, .pin.soon .badge { background: #e4e9ee; border-color: rgba(31, 51, 70, 0.45); color: rgba(31, 51, 70, 0.55); }
+  .pin.next .badge { background: #ffd23f; }
+  .pin.next .badge::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid #fff; animation: pinPulse 1.4s ease-out infinite; }
   @keyframes pinPulse { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(1.35); } }
   .wlabel { position: absolute; left: 0; top: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
     padding: 8px 18px; border-radius: 14px; background: var(--wbg); color: var(--wink); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); border: 2px solid rgba(255, 255, 255, 0.7); text-align: center; }
@@ -361,7 +366,7 @@
     font-family: var(--font-display); font-size: 22px; letter-spacing: 0.08em; padding: 10px 22px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; animation: tagInOut 2.2s ease both; }
   @keyframes tagInOut { 0% { opacity: 0; transform: translate(-50%, -8px); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -4px); } }
-  @media (prefers-reduced-motion: reduce) { .pin.next::after, #splash .logo { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .pin.next .badge::after, #splash .logo { animation: none; } }
 </style>
 </head>
 <body>
@@ -382,6 +387,7 @@
     <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl" data-i18n="hint">Pista</span><span class="cost"></span></button>
     <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl" data-i18n="undo">Deshacer</span><span class="cost"></span></button>
     <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl" data-i18n="slow">Lento</span><span class="cost"></span></button>
+    <button id="skipBtn" class="tool" title="Pasar el nivel"><span class="ico">⏭</span><span class="lbl" data-i18n="skip">Pasar</span></button>
   </div>
   <div class="panel counter" aria-live="polite">
     <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
@@ -1813,6 +1819,15 @@
     }
   }
 
+  // Pasar el nivel como si lo hubieras completado (recoge todo el combustible al momento)
+  function skipLevel() {
+    if (!['idle', 'countdown', 'lost'].includes(phase) || !$('modal').hidden || !$('pause').hidden) return;
+    hideCountdown(); hideBanner(); clearHints(); hideHand(); queued = null;
+    for (const c of Object.values(cells)) { for (const g of c.gems || []) g.visible = false; c.coins = 0; }
+    remaining = 0; setCount(0, true);
+    win();
+  }
+  $('skipBtn').addEventListener('click', skipLevel);
   function win() {
     phase = 'won'; queued = null;
     Snd.sfx.win();
@@ -2235,7 +2250,7 @@
   // ---------- Idiomas, ajustes y logros ----------
   const I18N = {
     es: {
-      left: 'FALTAN', pause: 'Pausa', hint: 'Pista', undo: 'Deshacer', slow: 'Lento', play: 'Jugar', settings: 'Ajustes', achievements: 'Logros',
+      left: 'FALTAN', pause: 'Pausa', hint: 'Pista', undo: 'Deshacer', slow: 'Lento', skip: 'Pasar', play: 'Jugar', settings: 'Ajustes', achievements: 'Logros',
       home: '‹ Inicio', resume: 'Continuar', restart: '↺ Reiniciar', settingsBtn: '⚙ Ajustes', exitMap: 'Salir al mapa', levels: 'Niveles',
       retry: '↺ Repetir', next: 'Siguiente salto', soonBtn: 'Pronto', cleared: 'Tanque lleno, listo para despegar', allDone: '¡Has completado Uplands!', level: 'Salto {n}', jumpDone: 'Salto {n} completado', fuelFull: '¡Tanque lleno!', cd0: 'Preparados', cd1: 'Listos', cd2: '¡Ya!', fuel: 'Fuel', soon: 'pronto',
       unlockWorld: 'Termina {prev} para desbloquear {w}', cielo: 'Cielo', dunas: 'Dunas', escarcha: 'Escarcha',
@@ -2263,7 +2278,7 @@
       m_key_t: '● Interruptores', m_key: 'Las barreras no dejan pasar. Pisa el botón de su mismo color para bajarlas. Dentro también hay celdas de combustible.',
     },
     en: {
-      left: 'LEFT', pause: 'Pause', hint: 'Hint', undo: 'Undo', slow: 'Slow', play: 'Play', settings: 'Settings', achievements: 'Achievements',
+      left: 'LEFT', pause: 'Pause', hint: 'Hint', undo: 'Undo', slow: 'Slow', skip: 'Skip', play: 'Play', settings: 'Settings', achievements: 'Achievements',
       home: '‹ Home', resume: 'Resume', restart: '↺ Restart', settingsBtn: '⚙ Settings', exitMap: 'Back to map', levels: 'Levels',
       retry: '↺ Retry', next: 'Next jump', soonBtn: 'Soon', cleared: 'Tank full, ready for lift-off', allDone: 'You completed Uplands!', level: 'Jump {n}', jumpDone: 'Jump {n} complete', fuelFull: 'Tank full!', cd0: 'Ready', cd1: 'Set', cd2: 'Go!', fuel: 'Fuel', soon: 'soon',
       unlockWorld: 'Finish {prev} to unlock {w}', cielo: 'Sky', dunas: 'Dunes', escarcha: 'Frost',
@@ -2523,7 +2538,7 @@
   }
 
   // ---------- Flujo de pantallas: inicio → mapa de mundos → juego ⇄ pausa → resultado ----------
-  const DEV = true;   // TEMPORAL para pruebas: todos los niveles desbloqueados (antes: location.hash === '#dev')
+  const DEV = location.hash === '#dev';   // con #dev en la dirección: todos los niveles desbloqueados
   const WORLDS = [
     { id: 'cielo', name: 'Cielo', levels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
     { id: 'dunas', name: 'Dunas', levels: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
@@ -2773,11 +2788,11 @@
       const b = document.createElement('button'), lv = s.lv;
       b.className = 'pin'; b.dataset.k = k;
       b.setAttribute('aria-label', `${tr(WORLDS[s.wi].id)} · ${tr('level', { n: s.n })}`);
-      if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="n">${s.n}</span>`; b.disabled = true; }
-      else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="n">${LOCK_SVG}</span>`; b.disabled = true; }
+      if (lv === null) { b.classList.add('soon'); b.innerHTML = `<span class="badge"><span class="n">${s.n}</span></span>`; b.disabled = true; }
+      else if (!slotUnlocked(k)) { b.classList.add('locked'); b.innerHTML = `<span class="badge"><span class="n">${LOCK_SVG}</span></span>`; b.disabled = true; }
       else {
         const n = best[lv];
-        b.innerHTML = `<span class="n">${s.n}</span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
+        b.innerHTML = `<span class="badge"><span class="n">${s.n}</span></span><span class="st">${n === undefined ? '' : '★'.repeat(n) + `<span class="off">${'★'.repeat(3 - n)}</span>`}</span>`;
         if (n === undefined && nextK < 0) { b.classList.add('next'); nextK = k; }
         b.addEventListener('click', e => { if (map.moved > 8) { e.preventDefault(); return; } startLevel(lv); });
       }
@@ -2806,8 +2821,17 @@
       el.style.visibility = off ? 'hidden' : '';
       if (!off) el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
     };
+    // la zona de toque cubre el número y la isla entera: va desde lo alto de la chapa hasta la punta de la isla
+    const u = innerWidth / (2 * map.halfW);
     for (const el of box.children) {
-      if (el.dataset.k !== undefined) { const k = +el.dataset.k, p = map.pads[k].position; put(el, _pv.set(p.x, p.y + (k === map.avatarK ? 1.15 : 0.62), p.z)); }
+      if (el.dataset.k !== undefined) {
+        const k = +el.dataset.k, p = map.pads[k].position, lift = (k === map.avatarK ? 1.15 : 0.62) * COS_E * u;
+        const w = Math.max(64, 1.35 * u), top = lift + 24, h = top + 0.95 * u;
+        _pv.set(p.x, p.y, p.z).project(mapCam);
+        const x = (_pv.x + 1) * W2, y = (1 - _pv.y) * H2, off = y < -200 || y > innerHeight + 200;
+        el.style.visibility = off ? 'hidden' : '';
+        if (!off) { el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - top).toFixed(1)}px)`; }
+      }
       else { const wi = +el.dataset.wi; put(el, new THREE.Vector3(0, wi === 0 ? padY(0) - 1.6 : (padY(wi * 12 - 1) + padY(wi * 12)) / 2 + 0.2, 0)); }
     }
   }
