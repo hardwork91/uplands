@@ -2117,8 +2117,30 @@
   const hintArrowHead = new THREE.ConeGeometry(0.26, 0.42, 4);   // punta de 4 caras, a juego con los bloques
   const hintArrowShaft = new THREE.BoxGeometry(0.14, 0.28, 0.14);
   const hintArrowMat = new THREE.MeshLambertMaterial({ color: 0xffd23f, emissive: 0x7a5a00 });
+  // Tinte amarillo de todo el bloque de la pista (suelo, capas, adornos y bidón): se usan copias de los
+  // materiales para no teñir otros bloques que los compartan, y al quitar la pista se devuelven los originales
+  const HINT_TINT = new THREE.Color(0xffc400);
+  function tintBlock(c) {
+    const mats = [];
+    c.group.traverse(o => {
+      if (o === player || o === c.hintFx || !o.isMesh || o.userData.hintOrig) return;
+      for (let p = o.parent; p; p = p.parent) if (p === player || p === c.hintFx) return;
+      const orig = o.material, list = Array.isArray(orig) ? orig : [orig];
+      if (!list.every(m => m.emissive)) return;
+      const copies = list.map(m => { const k = m.clone(); k.userData.baseEmissive = m.emissive.clone(); mats.push(k); return k; });
+      o.userData.hintOrig = orig; o.material = Array.isArray(orig) ? copies : copies[0];
+    });
+    return mats;
+  }
+  function untintBlock(c) {
+    c.group.traverse(o => {
+      if (!o.userData.hintOrig) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+      o.material = o.userData.hintOrig; delete o.userData.hintOrig;
+    });
+  }
   function clearHints() {
-    for (const c of Object.values(cells)) if (c.hintFx) { c.group.remove(c.hintFx); c.hintFx = null; }
+    for (const c of Object.values(cells)) if (c.hintFx) { untintBlock(c); c.group.remove(c.hintFx); c.hintFx = null; }
   }
   function showHint() {
     if (phase !== 'idle' || !pos || !prog.hintUnlocked) return;
@@ -2150,6 +2172,7 @@
       arrow.position.y = arrow.userData.baseY;
       m.add(arrow); m.userData.arrow = arrow;
       c.group.add(m); c.hintFx = m;
+      m.userData.mats = tintBlock(c);
     }
   }
 
@@ -3259,7 +3282,8 @@
         g.rotation.y += wdt * 1.6; g.position.y = 0.34 + Math.sin(wtime * 2.4 + g.userData.phase) * 0.04;
         if (g.material.emissive) g.material.emissiveIntensity = 0.45 + 0.25 * Math.sin(wtime * 3 + g.userData.phase);   // pulso de energía
       }
-      if (c.hintFx) { const ar = c.hintFx.userData.arrow; ar.position.y = ar.userData.baseY + 0.1 * Math.abs(Math.sin(time * 3.2)); ar.rotation.y = time * 1.2; }
+      if (c.hintFx) { const tk = 0.2 + 0.07 * Math.sin(time * 4); for (const mt of c.hintFx.userData.mats) mt.emissive.copy(mt.userData.baseEmissive).lerp(HINT_TINT, tk);
+        const ar = c.hintFx.userData.arrow; ar.position.y = ar.userData.baseY + 0.1 * Math.abs(Math.sin(time * 3.2)); ar.rotation.y = time * 1.2; }
       if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
     }
     for (const cl of clouds) { cl.position.x += cl.userData.v * wdt; if (cl.position.x > 14) cl.position.x = -14; }
