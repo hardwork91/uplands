@@ -2573,10 +2573,10 @@
   mapScene.add(mapSun, mapSun.target);
   const MAP_R = new THREE.Vector3(1, 0, -1).normalize();    // derecha en pantalla
   const MAP_F = new THREE.Vector3(-1, 0, -1).normalize();   // hacia el fondo
-  const MAP_STEP = 1.8, MAP_GAP = 4.6, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
-  const map = { built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
+  const MAP_STEP = 1.6, MAP_GAP = 4.6, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
+  const map = { amp: 3, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, avatar: null, drag: null, moved: 0 };
   const padY = k => k * MAP_STEP + SLOTS[k].wi * MAP_GAP;
-  const padSX = k => 2.0 * Math.sin(k * 0.62);
+  const padSX = k => map.amp * Math.sin(k * 0.5);   // curvas anchas: la amplitud se ajusta al ancho de la pantalla
   // algo que está d unidades más al fondo se ve más arriba en pantalla: se compensa bajándolo
   const behind = (sx, d, y) => new THREE.Vector3().addScaledVector(MAP_R, sx).addScaledVector(MAP_F, d).setY(y - d * TAN_E);
   function padPos(k) {
@@ -2642,8 +2642,13 @@
     }
     return c;
   }
+  function clearMap() {
+    for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
+    map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.built = false;
+  }
   function buildMap() {
     const saved = theme;
+    map.builtAmp = map.amp;
     // islas de los niveles
     SLOTS.forEach((s, k) => {
       theme = THEMES[WORLDS[s.wi].id];
@@ -2675,7 +2680,7 @@
     }
     // islas de paisaje al lado del camino, en el lado contrario a la curva
     SLOTS.forEach((s, k) => {
-      if (k % 3 !== 1) return;
+      if (Math.abs(padSX(k)) < map.amp * 0.75 && k % 4 !== 3) return;   // junto a las curvas, en el hueco que deja el camino
       const wid = WORLDS[s.wi].id; theme = THEMES[wid];
       const rnd = rngFor('scen' + k);
       const shapes = [[[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [1, 1], [0, 1]]];
@@ -2685,8 +2690,9 @@
       spots.forEach(([x, z]) => { const m = 1 + Math.floor(rnd() * 2); for (let i = 0; i < m; i++) mapProps(d, wid, x + (rnd() - 0.5) * 0.5, z + (rnd() - 0.5) * 0.5, rnd); });
       d.build(isl);
       isl.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      const far = Math.abs(padSX(k)) < map.amp * 0.75;   // las de lejos solo se ven en pantallas anchas
       const side = padSX(k) > 0 ? -1 : 1;
-      isl.position.copy(behind(side * (3.4 + rnd() * 0.8), 0.6 + rnd() * 1.6, padY(k) - 0.3 - rnd() * 0.6));
+      isl.position.copy(behind(far ? (rnd() < 0.5 ? -1 : 1) * (map.amp + 3 + rnd() * 1.5) : side * (map.amp * 0.87 + rnd() * 0.8), 0.6 + rnd() * 1.6, padY(k) - 0.3 - rnd() * 0.6));
       isl.scale.setScalar(0.8 + rnd() * 0.25);
       isl.userData.base = isl.position.y; isl.userData.ph = rnd() * 6;
       mapScene.add(isl); map.pads.push(isl);   // flotan igual que las islas de niveles
@@ -2752,6 +2758,7 @@
     map.halfW = asp < 1 ? 4.6 : Math.max(5.5 * asp, 6);
     map.halfH = map.halfW / asp;
     if (asp >= 1) { map.halfH = 6.2; map.halfW = map.halfH * asp; }
+    map.amp = Math.round(Math.max(3, Math.min(6.5, map.halfW - 1.8)) * 2) / 2;   // en pasos de 0,5 para no reconstruir por nada
     Object.assign(mapCam, { left: -map.halfW, right: map.halfW, top: map.halfH, bottom: -map.halfH });
     mapCam.updateProjectionMatrix();
     map.min = padY(0) + 0.62 * map.halfH / COS_E;
@@ -2855,14 +2862,20 @@
     const step = { ArrowUp: 2, ArrowDown: -2, PageUp: 8, PageDown: -8 }[e.key];
     if (step) { e.preventDefault(); map.vy = 0; map.target = mapClamp((map.target ?? map.y) + step); }
   });
-  addEventListener('resize', () => { if (document.body.dataset.screen === 'map') { mapFit(); map.y = mapClamp(map.y); } });
+  addEventListener('resize', () => {
+    if (document.body.dataset.screen !== 'map') return;
+    mapFit();
+    if (map.built && map.builtAmp !== map.amp) { clearMap(); buildMap(); renderMapPins(); }
+    map.y = mapClamp(map.y);
+  });
 
   // Abre el mapa centrado en un nivel (el que acabas de jugar o el siguiente pendiente)
   function openMap(focusK) {
     clearLevel(); updateStats();
-    if (!map.built) buildMap();
     setScreen('map');
     mapFit();
+    if (map.built && map.builtAmp !== map.amp) clearMap();
+    if (!map.built) buildMap();
     const nextK = renderMapPins();
     map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
     const k = focusK ?? map.avatarK;
