@@ -2114,13 +2114,9 @@
     memo.set(sig, ok);
     return ok;
   }
-  const hintGeo = new THREE.PlaneGeometry(0.86, 0.86);
-  const hintFrameGeo = new THREE.RingGeometry(0.44, 0.5, 4, 1, Math.PI / 4);
   const hintArrowHead = new THREE.ConeGeometry(0.26, 0.42, 4);   // punta de 4 caras, a juego con los bloques
   const hintArrowShaft = new THREE.BoxGeometry(0.14, 0.28, 0.14);
-  const hintArrowMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x6a6a6a });   // blanca: no se confunde con barreras ni botones
-  const hintArrowLine = new THREE.LineBasicMaterial({ color: 0x1f3346 });
-  const hintArrowEdges = [new THREE.EdgesGeometry(hintArrowHead), new THREE.EdgesGeometry(hintArrowShaft)];
+  const hintArrowMat = new THREE.MeshLambertMaterial({ color: 0xffd23f, emissive: 0x7a5a00 });
   function clearHints() {
     for (const c of Object.values(cells)) if (c.hintFx) { c.group.remove(c.hintFx); c.hintFx = null; }
   }
@@ -2145,18 +2141,13 @@
     for (const k of good) {
       const c = cells[k];
       const m = new THREE.Group();
-      const fill = new THREE.Mesh(hintGeo, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.7, depthWrite: false }));
-      const frame = new THREE.Mesh(hintFrameGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
-      fill.rotation.x = frame.rotation.x = -Math.PI / 2; frame.position.y = 0.002;
-      m.add(fill, frame); m.position.y = 0.012;
       // flecha que apunta al bloque desde arriba: se ve aunque el bloque tenga varias capas encima
       const layers = Math.max(0, (c.passes ?? 1) - 1);
       const arrow = new THREE.Group();
       const head = new THREE.Mesh(hintArrowHead, hintArrowMat), shaft = new THREE.Mesh(hintArrowShaft, hintArrowMat);
-      head.add(new THREE.LineSegments(hintArrowEdges[0], hintArrowLine)); shaft.add(new THREE.LineSegments(hintArrowEdges[1], hintArrowLine));
       head.rotation.x = Math.PI; head.position.y = 0.21; shaft.position.y = 0.54;
       arrow.add(head, shaft); arrow.userData.baseY = layers * 0.05 + 0.5;   // por encima del bidón
-      arrow.position.y = arrow.userData.baseY - m.position.y;
+      arrow.position.y = arrow.userData.baseY;
       m.add(arrow); m.userData.arrow = arrow;
       c.group.add(m); c.hintFx = m;
     }
@@ -3268,8 +3259,7 @@
         g.rotation.y += wdt * 1.6; g.position.y = 0.34 + Math.sin(wtime * 2.4 + g.userData.phase) * 0.04;
         if (g.material.emissive) g.material.emissiveIntensity = 0.45 + 0.25 * Math.sin(wtime * 3 + g.userData.phase);   // pulso de energía
       }
-      if (c.hintFx) { const k = 0.5 + Math.sin(time * 6) * 0.5; c.hintFx.children[0].material.opacity = 0.55 + k * 0.35; c.hintFx.children[1].material.opacity = 0.9; c.hintFx.position.y = 0.012 + k * 0.01;
-        const ar = c.hintFx.userData.arrow; if (ar) { ar.position.y = ar.userData.baseY - c.hintFx.position.y + 0.1 * Math.abs(Math.sin(time * 3.2)); ar.rotation.y = time * 1.2; } }
+      if (c.hintFx) { const ar = c.hintFx.userData.arrow; ar.position.y = ar.userData.baseY + 0.1 * Math.abs(Math.sin(time * 3.2)); ar.rotation.y = time * 1.2; }
       if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
     }
     for (const cl of clouds) { cl.position.x += cl.userData.v * wdt; if (cl.position.x > 14) cl.position.x = -14; }
