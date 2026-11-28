@@ -2677,6 +2677,8 @@
   function clearMap() {
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
     if (map.avatar) mapAvatarScene.remove(map.avatar);
+    for (const st of map.stars || []) mapAvatarScene.remove(st);
+    map.stars = [];
     map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
   }
   function buildMap() {
@@ -2891,6 +2893,7 @@
     if (map.avatar && map.avatarK >= 0) {
       const p = map.pads[map.avatarK].position;
       map.avatar.position.set(p.x, p.y + 0.08 * 1.1, p.z);   // sobre el botón pulsado
+      for (const st of map.stars) st.position.copy(st.userData.pad.position).add(st.userData.off);
       mapAvHemi.color.copy(mapHemi.color); mapAvHemi.groundColor.copy(mapHemi.groundColor); mapAvHemi.intensity = mapHemi.intensity;
       mapAvSun.color.copy(mapSun.color); mapAvSun.intensity = mapSun.intensity; mapAvSun.position.copy(mapSun.position); mapAvSun.target.position.copy(mapSun.target.position); mapAvSun.target.updateMatrixWorld();
       map.avatar.userData.body.position.y = Math.abs(Math.sin(time * 2.2)) * 0.05;
@@ -2965,6 +2968,8 @@
   function mapMarks() {
     for (const p of map.pads.slice(0, SLOTS.length)) if (p.userData.mark) { p.remove(p.userData.mark); p.userData.mark = null; }
     map.nextCap = null;
+    for (const st of map.stars || []) mapAvatarScene.remove(st);
+    map.stars = [];
     SLOTS.forEach((s, k) => {
       if (k > map.limitK) return;
       const pad = map.pads[k], g = new THREE.Group(), lv = s.lv;
@@ -2986,8 +2991,10 @@
       // estrellas en arco por encima del interruptor, de cara a la cámara
       if (n) STAR_ARC[n].forEach(([lat, y, roll]) => {
         const st = new THREE.Mesh(MAP_STAR_GEO, mapStarMat); st.scale.setScalar(0.2);
-        st.position.copy(new THREE.Vector3().addScaledVector(MAP_R, lat).addScaledVector(MAP_F, -0.15)).setY(y);
-        st.rotation.set(-ELEV, Math.PI / 4, roll, 'YXZ'); st.castShadow = true; g.add(st);
+        // van en la capa de encima (con el viajero) para que no las tapen piedras ni islas de adorno
+        st.scale.setScalar(0.22);
+        st.userData.pad = pad; st.userData.off = new THREE.Vector3().addScaledVector(MAP_R, lat).addScaledVector(MAP_F, -0.15).setY(y).multiplyScalar(1.1);
+        st.rotation.set(-ELEV, Math.PI / 4, roll, 'YXZ'); mapAvatarScene.add(st); map.stars.push(st);
       });
       pad.add(g); pad.userData.mark = g;
     });
