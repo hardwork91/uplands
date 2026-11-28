@@ -3008,11 +3008,11 @@
       pad.add(g); pad.userData.mark = g;
     });
   }
-  // Visibilidad: el siguiente nivel y los 9 de después; lo demás queda tapado por un muro de nubes
+  // Visibilidad: el siguiente nivel y los 4 de después; lo demás queda tapado por un muro de nubes
   function mapApplyLimit() {
     const firstOpen = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
     const last = SLOTS.length - 1;
-    map.limitK = DEV || firstOpen < 0 ? last : Math.min(last, firstOpen + 9);
+    map.limitK = DEV || firstOpen < 0 ? last : Math.min(last, firstOpen + 4);
     // el muro es horizontal: si el último visible comparte fila con los siguientes, se enseña la fila entera
     while (map.limitK < last && padY(map.limitK + 1) - padY(map.limitK) < 0.5) map.limitK++;
     map.wallY = map.limitK < last ? padY(map.limitK) + 2.3 : null;
