@@ -2165,14 +2165,18 @@
         mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y));
       }
     const aspect = w / h;
-    // margen extra arriba y abajo para el HUD
-    let halfH = Math.max(my * 1.55, (mx * 1.2) / aspect);
-    halfH = Math.max(halfH, 2.2);
-    camera.top = halfH; camera.bottom = -halfH;
+    // El tablero se centra en el espacio que queda bajo la cabecera (pausa, tiempo, acciones), no en toda la pantalla
+    const hudEl = document.querySelector('.top'), hud = hudEl && document.body.dataset.screen === 'game' ? Math.min(h * 0.45, hudEl.getBoundingClientRect().bottom + 8) : 0;
+    const free = Math.max(1, h - hud), fa = w / free;
+    let halfF = Math.max(my * 1.25, (mx * 1.15) / fa);   // media altura del espacio libre, en unidades del mundo
+    halfF = Math.max(halfF, 2);
+    const halfH = halfF * h / free, shift = halfH - halfF;   // la vista completa, desplazada para que el hueco quede centrado
+    camera.top = halfH + shift; camera.bottom = -halfH + shift;   // más mundo arriba (detrás de la cabecera): el tablero baja al centro del hueco
     camera.left = -halfH * aspect; camera.right = halfH * aspect;
     camera.updateProjectionMatrix();
   }
   addEventListener('resize', fitCamera);
+  if (window.ResizeObserver) new ResizeObserver(() => { if (document.body.dataset.screen === 'game') fitCamera(); }).observe(document.querySelector('.top'));
 
   // ---------- Controles ----------
   const KEYMAP = {
