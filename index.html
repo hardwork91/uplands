@@ -2656,34 +2656,40 @@
       }
     }
   }
-  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x111111, flatShading: true });
-  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a1a1a, flatShading: true });   // muro de nubes: opaco, tapa lo que aún no se ve
-  const PUFF = new THREE.IcosahedronGeometry(1, 1);
+  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x111111 });
+  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a1a1a });   // muro de nubes: opaco, tapa lo que aún no se ve
+  // Nubes de cubos, del mismo estilo que los bloques: una fila base de cubos, otra más corta encima
+  // y algunos sueltos por delante y por detrás para darles volumen
+  const CUBE = new THREE.BoxGeometry(1, 1, 1);
+  function cloudCubes(rnd, size) {
+    // bloques anchos y bajos (como losas de algodón): base larga, un piso más corto encima y algún bulto lateral
+    const out = [], n = 3 + Math.floor(rnd() * 3);
+    for (let i = 0; i < n; i++) {
+      const x = (i - (n - 1) / 2) * 0.62, edge = i === 0 || i === n - 1;
+      out.push([x, 0, (rnd() - 0.5) * 0.2, 0.62, edge ? 0.26 : 0.32, 0.6 + rnd() * 0.2]);
+      if (!edge && rnd() < 0.8) out.push([x + (rnd() - 0.5) * 0.2, 0.26, (rnd() - 0.5) * 0.15, 0.5, 0.22, 0.46]);
+      if (rnd() < 0.35) out.push([x, -0.04, (rnd() < 0.5 ? -1 : 1) * 0.36, 0.44, 0.24, 0.36]);
+    }
+    return out.map(([x, y, z, sx, sy, sz]) => [x * size, y * size, z * size, sx * size, sy * size, sz * size]);
+  }
   // una nube entera en una sola geometría (para dibujar cientos con instancias)
   function mergedCloudGeo(seed) {
-    const r = rngFor('cloudgeo' + seed), n = 4 + seed, parts = [];
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
-    for (let j = 0; j < n; j++) {
-      const t = j / (n - 1), rad = 0.45 + 0.4 * Math.sin(Math.PI * t) + r() * 0.12;
-      const g = PUFF.index ? PUFF.toNonIndexed() : PUFF.clone();
-      g.applyMatrix4(m4.compose(new THREE.Vector3((t - 0.5) * 2.6, rad * 0.25, (r() - 0.5) * 0.4), q, new THREE.Vector3(rad, rad * 0.72, rad * 0.85)));
-      parts.push(g);
-    }
-    let len = 0; for (const g of parts) len += g.attributes.position.array.length;
-    const pos = new Float32Array(len); let o = 0;
-    for (const g of parts) { pos.set(g.attributes.position.array, o); o += g.attributes.position.array.length; g.dispose(); }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.computeVertexNormals();
+    const parts = cloudCubes(rngFor('cloudgeo' + seed), 1.5), m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+    const base = CUBE.toNonIndexed(), per = base.attributes.position.array.length;
+    const pos = new Float32Array(per * parts.length), nor = new Float32Array(per * parts.length);
+    parts.forEach(([x, y, z, sx, sy, sz], i) => {
+      const g = base.clone(); g.applyMatrix4(m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sx, sy, sz)));
+      pos.set(g.attributes.position.array, i * per); nor.set(g.attributes.normal.array, i * per); g.dispose();
+    });
+    base.dispose();
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     return geo;
   }
   function mapCloud(size, mat = mapCloudMat) {
-    // varias bolas achatadas que se solapan: más grandes en el centro, base algo plana
-    const c = new THREE.Group(), n = 4 + Math.floor(Math.random() * 3);
-    for (let j = 0; j < n; j++) {
-      const t = j / (n - 1), r = size * (0.45 + 0.4 * Math.sin(Math.PI * t) + Math.random() * 0.12);
-      const b = new THREE.Mesh(PUFF, mat);
-      b.scale.set(r, r * 0.72, r * 0.85);
-      b.position.set((t - 0.5) * size * 2.6, r * 0.25, (Math.random() - 0.5) * size * 0.4);
-      c.add(b);
+    const c = new THREE.Group();
+    for (const [x, y, z, sx, sy, sz] of cloudCubes(Math.random, size * 1.7)) {
+      const b = new THREE.Mesh(CUBE, mat); b.position.set(x, y, z); b.scale.set(sx, sy, sz); c.add(b);
     }
     return c;
   }
@@ -2818,9 +2824,9 @@
     mapSun.intensity = A.sun[1] + (B.sun[1] - A.sun[1]) * s;
     // nubes casi sin sombrear (poco color iluminado y mucho color propio) para que el blanco no se queme
     map.cloudCol.set(A.cloud).lerp(_cb.set(B.cloud), s).lerp(_cb.set(0xffffff), 0.45);
-    mapCloudMat.color.copy(map.cloudCol).multiplyScalar(0.22); mapCloudMat.emissive.copy(map.cloudCol).multiplyScalar(0.72);
+    mapCloudMat.color.copy(map.cloudCol).multiplyScalar(0.3); mapCloudMat.emissive.copy(map.cloudCol).multiplyScalar(0.62);
     map.fogCol.copy(map.cloudCol).lerp(_cb.set(0xffffff), 0.2);
-    mapFogMat.color.copy(map.fogCol).multiplyScalar(0.22); mapFogMat.emissive.copy(map.fogCol).multiplyScalar(0.72);
+    mapFogMat.color.copy(map.fogCol).multiplyScalar(0.3); mapFogMat.emissive.copy(map.fogCol).multiplyScalar(0.62);
     const night = s > 0.5 ? B.ink === '#ffffff' : A.ink === '#ffffff';
     document.body.classList.toggle('map-night', night);
   }
