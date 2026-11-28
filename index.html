@@ -41,9 +41,13 @@
     padding-top: calc(14px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
-    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
     pointer-events: none;
   }
+  .hud-main { width: 100%; max-width: 720px; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: stretch; }
+  .hud-main > * { pointer-events: auto; }
+  .iconbtn { width: 52px; padding: 0; display: grid; place-items: center; border-radius: 12px; }
+  .iconbtn svg { width: 24px; height: 24px; fill: var(--ink); }
   .panel {
     background: var(--panel); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
@@ -76,26 +80,26 @@
   button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
   .right { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
-  .tools { display: flex; gap: 8px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
-  .tool {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    width: 76px; min-height: 84px; padding: 10px 6px; border-radius: 10px;
-  }
-  .tool .ico { font-family: var(--font-body); font-size: 28px; line-height: 1; }
-  .tool .lbl { font-size: 11px; letter-spacing: 0.03em; }
-  .tool .cost { display: flex; align-items: center; gap: 4px; font-size: 10px; opacity: 0.8; font-variant-numeric: tabular-nums; }
-  .tool .coin { width: 10px; height: 10px; }
+  .tools { display: flex; gap: 8px; pointer-events: none; justify-content: center; flex-wrap: wrap; max-width: 720px; }
+  .tools .tool { pointer-events: auto; }
+  .tool { display: flex; align-items: center; gap: 6px; padding: 7px 12px 7px 10px; border-radius: 999px; min-height: 40px; }
+  .tool .ico { font-family: var(--font-body); font-size: 18px; line-height: 1; }
+  .tool .lbl { font-size: 12px; letter-spacing: 0.02em; }
+  .tool .cost { display: flex; align-items: center; gap: 3px; font-size: 11px; opacity: 0.85; font-variant-numeric: tabular-nums; }
+  .tool .cost:empty { display: none; }
+  .tool .coin { width: 11px; height: 11px; }
+  .counter { justify-content: center; }
   @media (max-width: 520px) {
-    .top { flex-direction: column; align-items: stretch; gap: 8px; }
-    .right { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
-    .tools { flex-wrap: nowrap; gap: 6px; }
-    .tool { width: 58px; min-height: 64px; padding: 6px 2px; gap: 2px; }
-    .tool .ico { font-size: 20px; }
-    .tool .lbl { font-size: 9px; letter-spacing: 0; }
+    .top { gap: 6px; }
+    .hud-main { gap: 6px; }
+    .iconbtn { width: 44px; }
+    .tools { gap: 5px; flex-wrap: nowrap; width: 100%; }
+    .tool { flex: 1 1 0; min-width: 0; justify-content: center; flex-direction: column; padding: 5px 4px; min-height: 44px; gap: 1px; border-radius: 14px; }
+    .tool .ico { font-size: 16px; }
+    .tool .lbl { font-size: 10px; letter-spacing: 0; white-space: nowrap; }
+    .tool .cost { font-size: 10px; } .tool .coin { width: 9px; height: 9px; }
     .counter { min-width: 0; padding: 6px 10px; }
-    #count { font-size: 24px; }
-    #stars { font-size: 13px; }
-    .coins { font-size: 12px; margin-top: 3px; }
+    .coins { font-size: 13px; }
   }
   #hintBtn { color: #8a6a00; }
   #undoBtn { color: #8a2f5a; }
@@ -262,16 +266,18 @@
   #demoCanvas { display: block; width: 100%; height: 170px; border-radius: 12px; background: linear-gradient(180deg, #bcdcf3, #eef6fa); }
   /* Barra de tiempo: empieza llena y se vacía; al cruzar cada marca se pierde una estrella */
   .top { justify-content: space-between; }
-  .tbar { flex: 1 1 260px; max-width: 460px; padding: 28px 16px 14px; box-sizing: border-box; }
+  .tbar { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 22px 14px 10px; box-sizing: border-box; }
+  .tbar .clock { flex: none; width: 22px; height: 22px; margin-top: -10px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+  .tbar .track { flex: 1; }
   .tbar .track { position: relative; height: 14px; border-radius: 999px; background: rgba(31,51,70,0.13); }
   .tbar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 999px; background: #3fb36b; transition: background 0.3s; }
   .tbar .fill.urgent { animation: urgent 0.6s ease-in-out infinite; }
   @keyframes urgent { 50% { opacity: 0.45; } }
   .tbar .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); opacity: 0.45; }
-  .tbar .mstar { position: absolute; top: -24px; transform: translateX(-50%); font-size: 17px; line-height: 1; color: var(--star); transition: color 0.2s, transform 0.2s; }
-  .tbar .mstar.lost { color: var(--star-off); transform: translateX(-50%) scale(0.8); }
+  .tbar .mstar { position: absolute; top: -22px; transform: translateX(-50%); font-size: 17px; line-height: 1; color: #f2b632; text-shadow: 0 1px 0 #b07a00; transition: color 0.2s, transform 0.2s; }   /* doradas, como en el mapa */
+  .tbar .mstar.lost { color: var(--star-off); text-shadow: none; transform: translateX(-50%) scale(0.8); }
   #banner .tolevels { pointer-events: auto; display: block; margin: 8px auto 0; font-size: 14px; }
-  @media (max-width: 520px) { .tbar { max-width: none; flex-basis: auto; padding: 24px 12px 10px; } }
+  @media (max-width: 520px) { .tbar { padding: 20px 10px 9px; gap: 8px; } .tbar .clock { width: 18px; height: 18px; } }
   /* Tanque de combustible: se llena de abajo arriba con cada celda */
   body:not([data-screen="game"]) #tank, body:not([data-screen="game"]) #fuelFull, body:not([data-screen="game"]) #countdown { display: none !important; }
   /* Cuenta atrás al empezar el nivel: Preparados, listos, ¡ya! */
@@ -355,24 +361,27 @@
 <canvas id="scene"></canvas>
 
 <div class="top">
-  <div class="panel tbar" id="tbar" aria-label="Tiempo">
-    <div class="track">
-      <div class="fill" id="tfill"></div>
-      <span class="mark" style="left:15%"></span><span class="mark" style="left:35%"></span><span class="mark" style="left:60%"></span>
-      <span class="mstar" style="left:15%">★</span><span class="mstar" style="left:35%">★</span><span class="mstar" style="left:60%">★</span>
+  <!-- cabecera: pausa | tiempo y estrellas | monedas -->
+  <div class="hud-main">
+    <button id="pauseBtn" class="iconbtn" title="Pausa (Esc)" aria-label="Pausa"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg></button>
+    <div class="panel tbar" id="tbar" aria-label="Tiempo">
+      <svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 1.6M10 3.5h4M12 3.5v2.5"/></svg>
+      <div class="track">
+        <div class="fill" id="tfill"></div>
+        <span class="mark" style="left:15%"></span><span class="mark" style="left:35%"></span><span class="mark" style="left:60%"></span>
+        <span class="mstar" style="left:15%">★</span><span class="mstar" style="left:35%">★</span><span class="mstar" style="left:60%">★</span>
+      </div>
+    </div>
+    <div class="panel counter" aria-live="polite">
+      <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
     </div>
   </div>
-  <div class="right">
+  <!-- subcabecera: acciones (cuestan monedas, se usan de vez en cuando) -->
   <div class="tools" aria-label="Acciones">
-    <button id="pauseBtn" class="tool" title="Pausa (Esc)"><span class="ico">⏸</span><span class="lbl" data-i18n="pause">Pausa</span><span class="cost">Esc</span></button>
     <button id="hintBtn" class="tool" title="Pista (H)" hidden><span class="ico">✦</span><span class="lbl" data-i18n="hint">Pista</span><span class="cost"></span></button>
     <button id="undoBtn" class="tool" title="Deshacer (U)" hidden><span class="ico">↶</span><span class="lbl" data-i18n="undo">Deshacer</span><span class="cost"></span></button>
     <button id="slowBtn" class="tool" title="Cámara lenta (L)" hidden><span class="ico">⏳</span><span class="lbl" data-i18n="slow">Lento</span><span class="cost"></span></button>
     <button id="skipBtn" class="tool" title="Pasar el nivel"><span class="ico">⏭</span><span class="lbl" data-i18n="skip">Pasar</span></button>
-  </div>
-  <div class="panel counter" aria-live="polite">
-    <div class="coins" title="Monedas"><span class="coin"></span><span id="coins">0</span></div>
-  </div>
   </div>
 </div>
 <div id="levelTag" hidden></div>
