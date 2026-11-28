@@ -2573,7 +2573,7 @@
   // El camino es una serpiente: tramos rectos de un lado a otro unidos por curvas en los extremos,
   // y los niveles van repartidos a lo largo de él a distancias iguales
   const MAP_SP = 3.3, MAP_ROW = 5.4, MAP_GAPS = 4.2, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
-  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, limitK: 99, renderK: 99, wallY: null, avatar: null, drag: null, moved: 0 };
+  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, limitK: 99, renderK: 99, cloudCol: new THREE.Color(0xffffff), fogCol: new THREE.Color(0xffffff), wallY: null, avatar: null, drag: null, moved: 0 };
   // Se precalcula como una polilínea con su longitud acumulada, para repartir los niveles a distancias iguales.
   // Curvas: medias elipses más altas que anchas (map.rx de ancho, media fila de alto)
   let pathPts = null;
@@ -2678,6 +2678,7 @@
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
     if (map.avatar) mapAvatarScene.remove(map.avatar);
     if (map.fog) mapAvatarScene.remove(map.fog);
+    for (const c of map.fx) if (c.parent) c.parent.remove(c);
     for (const st of map.stars || []) mapAvatarScene.remove(st);
     map.stars = [];
     map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
@@ -2781,6 +2782,12 @@
       map.fog.add(c);
     }
     mapAvatarScene.add(map.fog);   // por delante de todo: tapa lo que hay detrás
+    // nubes que cruzan por delante de los niveles que se están perdiendo (se colocan al abrir el mapa)
+    map.fadeClouds = [];
+    for (let i = 0; i < 6; i++) {
+      const c = mapCloud(0.7 + Math.random() * 0.5); c.userData.v = 0.15 + Math.random() * 0.2; c.userData.fade = true;
+      mapAvatarScene.add(c); map.fx.push(c); map.fadeClouds.push(c);
+    }
     // el viajero, de pie en la isla del siguiente nivel
     map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapAvatarScene.add(map.avatar);
     theme = saved;
@@ -2805,8 +2812,11 @@
     mapHemi.intensity = A.hemi[2] + (B.hemi[2] - A.hemi[2]) * s + 0.05;
     mapSun.color.set(A.sun[0]).lerp(_cb.set(B.sun[0]), s);
     mapSun.intensity = A.sun[1] + (B.sun[1] - A.sun[1]) * s;
-    mapCloudMat.color.set(A.cloud).lerp(_cb.set(B.cloud), s);
-    mapFogMat.color.copy(mapCloudMat.color).lerp(_cb.set(0xffffff), 0.25);
+    // nubes casi sin sombrear (poco color iluminado y mucho color propio) para que el blanco no se queme
+    map.cloudCol.set(A.cloud).lerp(_cb.set(B.cloud), s).lerp(_cb.set(0xffffff), 0.45);
+    mapCloudMat.color.copy(map.cloudCol).multiplyScalar(0.22); mapCloudMat.emissive.copy(map.cloudCol).multiplyScalar(0.72);
+    map.fogCol.copy(map.cloudCol).lerp(_cb.set(0xffffff), 0.2);
+    mapFogMat.color.copy(map.fogCol).multiplyScalar(0.22); mapFogMat.emissive.copy(map.fogCol).multiplyScalar(0.72);
     const night = s > 0.5 ? B.ink === '#ffffff' : A.ink === '#ffffff';
     document.body.classList.toggle('map-night', night);
   }
@@ -2851,7 +2861,7 @@
       _pv.set(0, map.wallY + 0.6, 0).project(mapCam);
       const fy = (1 - _pv.y) * innerHeight / 2 + 40, f = $('mapFog');
       f.style.height = fy > 100 ? fy + 'px' : '0px';   // sin restos pegados arriba cuando el muro queda fuera de la vista
-      f.style.setProperty('--fog', '#' + mapFogMat.color.getHexString());
+      f.style.setProperty('--fog', '#' + map.fogCol.getHexString());
     }
     const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
     const put = (el, v) => {
@@ -3054,6 +3064,15 @@
     for (const o of map.stones) o.visible = o.userData.slot <= map.renderK;
     for (const m of map.particles) m.visible = m.userData.y0 < top;
     $('mapFog').hidden = map.wallY === null;
+    // a partir del nivel 6 las nubes pasan por delante de los bloques
+    const yFront = padY(map.limitK) + 0.8;
+    for (const c of map.fx) if (!c.userData.fade) ((map.wallY !== null && c.userData.oy > yFront) ? mapAvatarScene : mapScene).add(c);
+    map.fadeClouds.forEach((c, i) => {
+      c.visible = map.wallY !== null;
+      if (!c.visible) return;
+      const y = yFront + 0.4 + (i / map.fadeClouds.length) * Math.max(1, map.wallY - yFront - 1.2);
+      c.position.copy(behind(-map.halfW - 2 + Math.random() * (2 * map.halfW + 4), -1, y));
+    });
   }
   function openMap(focusK) {
     clearLevel(); updateStats();
