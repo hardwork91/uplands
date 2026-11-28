@@ -2580,7 +2580,7 @@
   // El camino es una serpiente: tramos rectos de un lado a otro unidos por curvas en los extremos,
   // y los niveles van repartidos a lo largo de él a distancias iguales
   const MAP_SP = 3.3, MAP_ROW = 5.4, MAP_GAPS = 4.2, COS_E = Math.cos(ELEV), TAN_E = Math.tan(ELEV);
-  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, limitK: 99, wallY: null, avatar: null, drag: null, moved: 0 };
+  const map = { amp: 3, rx: 1.5, built: false, pads: [], stones: [], fx: [], y: 0, vy: 0, target: null, min: 0, max: 0, halfW: 4, halfH: 8, limitK: 99, renderK: 99, wallY: null, avatar: null, drag: null, moved: 0 };
   // Se precalcula como una polilínea con su longitud acumulada, para repartir los niveles a distancias iguales.
   // Curvas: medias elipses más altas que anchas (map.rx de ancho, media fila de alto)
   let pathPts = null;
@@ -2609,6 +2609,7 @@
   const padY = k => pathAt(padS(k))[1];
   const MAP_TILT = 0.8;   // > sen·cos de la elevación: basta para que lo de arriba quede detrás
   function mapTilt(o) {
+    o.userData.oy = o.position.y;   // altura antes de inclinar (la que se ve en pantalla)
     const d = o.position.y * MAP_TILT;
     o.position.addScaledVector(MAP_F, d); o.position.y -= d * TAN_E;
     if (o.userData.base !== undefined) o.userData.base = o.position.y;
@@ -2936,7 +2937,7 @@
   addEventListener('resize', () => {
     if (document.body.dataset.screen !== 'map') return;
     mapFit();
-    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); mapApplyLimit(); mapFit(); renderMapPins(); mapMarks(); }
+    if (map.built && map.builtAmp !== map.amp + ':' + map.rx) { clearMap(); buildMap(); mapApplyLimit(); mapFit(); renderMapPins(); mapMarks(); mapFade(); }
     map.y = mapClamp(map.y);
   });
 
@@ -2980,7 +2981,7 @@
     for (const st of map.stars || []) mapAvatarScene.remove(st);
     map.stars = [];
     SLOTS.forEach((s, k) => {
-      if (k > map.limitK) return;
+      if (k > map.renderK) return;
       const pad = map.pads[k], g = new THREE.Group(), lv = s.lv;
       const open = lv !== null && slotUnlocked(k), n = open ? best[lv] : undefined;
       const btn = new THREE.Group();
@@ -3008,19 +3009,51 @@
       pad.add(g); pad.userData.mark = g;
     });
   }
+  // Niveles 6, 7 y 8 (contando desde el siguiente): cada vez más tapados por la bruma de las nubes
+  const FADE = [0.42, 0.68, 0.88];
+  function mapFade() {
+    const fade = (o, amt, col) => o.traverse(m => {
+      if (!m.isMesh || !m.material || !m.material.color) return;
+      if (!m.userData.orig) { m.material = m.material.clone(); m.userData.orig = { c: m.material.color.clone(), e: m.material.emissive ? m.material.emissive.clone() : null }; }
+      if (m.material.map) { m.material.transparent = true; m.material.opacity = 1 - amt; return; }   // pegatinas: se desvanecen
+      m.material.color.copy(m.userData.orig.c).lerp(col, amt);
+      if (m.userData.orig.e) m.material.emissive.copy(m.userData.orig.e).lerp(col, amt * 0.6);
+    });
+    const col = new THREE.Color();
+    SLOTS.forEach((s, k) => {
+      if (k > map.renderK) return;
+      const i = k - map.limitK - 1, amt = i >= 0 ? FADE[i] : 0;
+      col.set(THEMES[WORLDS[s.wi].id].cloud).lerp(new THREE.Color(0xffffff), 0.35);
+      if (amt || map.pads[k].userData.faded) fade(map.pads[k], amt, col);
+      map.pads[k].userData.faded = amt > 0;
+    });
+    // islas de adorno: según la altura, entre el último nivel claro y el muro
+    const y0 = padY(map.limitK), y1 = map.wallY ?? Infinity;
+    map.pads.slice(SLOTS.length).forEach(o => {
+      const amt = Math.max(0, Math.min(1, (o.userData.oy - y0) / (y1 - y0))) * 0.9;
+      if (amt || o.userData.faded) { col.set(0xffffff); fade(o, amt * 0.7, col); }
+      o.userData.faded = amt > 0;
+    });
+    for (const st of map.stones) {
+      const i = st.userData.slot - map.limitK - 1, amt = i >= 0 ? FADE[Math.min(2, i)] * 0.95 : 0;
+      if (amt || st.userData.faded) { col.set(THEMES[WORLDS[SLOTS[st.userData.slot].wi].id].cloud).lerp(new THREE.Color(0xffffff), 0.35); fade(st, amt, col); }
+      st.userData.faded = amt > 0;
+    }
+  }
   // Visibilidad: el siguiente nivel y los 4 de después; lo demás queda tapado por un muro de nubes
   function mapApplyLimit() {
     const firstOpen = SLOTS.findIndex((s, i) => s.lv !== null && slotUnlocked(i) && !isDone(s.lv));
     const last = SLOTS.length - 1;
+    // 5 niveles se ven claros; los 3 siguientes se van perdiendo entre las nubes y del resto no se ve nada
     map.limitK = DEV || firstOpen < 0 ? last : Math.min(last, firstOpen + 4);
-    // el muro es horizontal: si el último visible comparte fila con los siguientes, se enseña la fila entera
-    while (map.limitK < last && padY(map.limitK + 1) - padY(map.limitK) < 0.5) map.limitK++;
-    map.wallY = map.limitK < last ? padY(map.limitK) + 2.3 : null;
+    map.renderK = Math.min(last, map.limitK + 3);
+    let topY = -Infinity; for (let k = 0; k <= map.renderK; k++) topY = Math.max(topY, padY(k));
+    map.wallY = map.renderK < last ? topY + 2.3 : null;
     map.fog.visible = map.wallY !== null;
     if (map.fog.visible) { map.fog.position.set(0, map.wallY, 0); mapTilt(map.fog); }
     const top = map.wallY === null ? Infinity : map.wallY;
-    map.pads.forEach((o, i) => { o.visible = i < SLOTS.length ? i <= map.limitK : o.userData.base < top; });
-    for (const o of map.stones) o.visible = o.userData.slot <= map.limitK;
+    map.pads.forEach((o, i) => { o.visible = i < SLOTS.length ? i <= map.renderK : o.userData.oy < top - 0.8; });
+    for (const o of map.stones) o.visible = o.userData.slot <= map.renderK;
     for (const m of map.particles) m.visible = m.userData.y0 < top;
     $('mapFog').hidden = map.wallY === null;
   }
@@ -3034,7 +3067,7 @@
     mapFit();
     const nextK = renderMapPins();
     map.avatarK = nextK >= 0 ? nextK : SLOTS.length - 1;
-    mapMarks();
+    mapMarks(); mapFade();
     // el viajero, de espaldas a la cámara, mira hacia donde sigue el camino (arriba a la derecha o a la izquierda)
     const ak = map.avatarK, nk = Math.min(SLOTS.length - 1, ak + 1);
     const dx = ak === nk ? 1 : pathAt(padS(nk))[0] - pathAt(padS(ak))[0];
