@@ -1572,14 +1572,18 @@
     const start = toWorld(pos[0], pos[1]);
     player.rotation.y = YAW.E;   // aparece mirando hacia abajo a la derecha (hacia la cámara)
     const wait = maxIntro + 0.05;
-    tween(wait, () => {}, () => {
+    // La cuenta atrás va con el aterrizaje: «Preparados» al aparecer, «Listos» a mitad de bajada y «¡Ya!» al posarse
+    const land = () => {
+      phase = 'intro';
       player.visible = true;
       player.scale.set(1, 1, 1);
       player.position.set(start.x, 9, start.z);
       // Aterrizaje propulsado: baja rápido, frena con las toberas, flota un instante y se posa
       setFlames(true); Snd.sfx.thrust(1.5);
+      let said = 0; cdWord(0);
       tween(1.5, k => {
         player.position.y = k < 0.75 ? 0.35 + 8.65 * Math.pow(1 - k / 0.75, 3) : 0.35 * (1 - (k - 0.75) / 0.25);
+        if (k >= 0.5 && said < 1) { said = 1; cdWord(1); }
       }, () => {
         setFlames(false);
         const sc = cells[key(pos[0], pos[1])];
@@ -1589,10 +1593,13 @@
         Snd.sfx.land();
         squash();
         phase = 'idle';
-        // primero las explicaciones de mecánicas nuevas (si las hay) y luego la cuenta atrás
-        if (!maybeMechanicIntro(startCountdown)) startCountdown();
+        cdWord(2);   // ¡Ya!: empieza el tiempo
+        timersOn = true; levelReadyT = clock.elapsedTime;
+        maybeHand(); checkStuck();
       });
-    });
+    };
+    // primero se colocan los bloques; luego las explicaciones de mecánicas nuevas (si las hay) y el aterrizaje
+    tween(wait, () => {}, () => { phase = 'idle'; if (!maybeMechanicIntro(land)) land(); });
   }
 
   function squash() {
@@ -2389,28 +2396,14 @@
   function hideHand() { $('handTip').hidden = true; }
 
   // ---------- Bloques nuevos: modal con una mini escena 3D que muestra cómo funciona ----------
-  // Cuenta atrás: el tiempo no corre hasta el «¡Ya!», y mientras tanto no te puedes mover
-  // (se puede mirar el mapa, pero el reloj empieza igual para todos)
-  const CD_STEP = 0.75;
-  let cdT = 0, cdStep = -1;
-  function startCountdown() {
-    if (phase !== 'idle' || remaining === 0) return;
-    phase = 'countdown'; queued = null; cdT = 0; cdStep = -1;
-  }
-  function tickCountdown(dt) {
-    if (phase !== 'countdown') return;
-    cdT += dt;
-    const step = Math.floor(cdT / CD_STEP);
-    if (step === cdStep || step > 2) return;
-    cdStep = step;
+  // Cuenta atrás: va con el aterrizaje del viajero; el tiempo no corre hasta el «¡Ya!»
+  // Muestra una palabra de la cuenta atrás (0 Preparados, 1 Listos, 2 ¡Ya!) con su sonido
+  function cdWord(step) {
     const el = $('countdown');
     el.textContent = tr('cd' + step); el.className = step === 2 ? 'go' : ''; el.hidden = false;
     void el.offsetWidth; el.classList.add('pop');
     clearTimeout(el._h); el._h = setTimeout(() => { el.hidden = true; }, 720);
-    if (step < 2) { Snd.sfx.count(); return; }
-    Snd.sfx.go(); vib(30);
-    phase = 'idle'; timersOn = true; levelReadyT = clock.elapsedTime;
-    maybeHand(); checkStuck();
+    if (step < 2) Snd.sfx.count(); else { Snd.sfx.go(); vib(30); }
   }
   function hideCountdown() { const el = $('countdown'); el.hidden = true; clearTimeout(el._h); }
   function maybeMechanicIntro(then) {
@@ -2666,8 +2659,8 @@
       }
     }
   }
-  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x222222, flatShading: true });
-  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x333333, flatShading: true });   // muro de nubes: opaco, tapa lo que aún no se ve
+  const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x111111, flatShading: true });
+  const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a1a1a, flatShading: true });   // muro de nubes: opaco, tapa lo que aún no se ve
   const PUFF = new THREE.IcosahedronGeometry(1, 1);
   function mapCloud(size, mat = mapCloudMat) {
     // varias bolas achatadas que se solapan: más grandes en el centro, base algo plana
@@ -2684,6 +2677,7 @@
   function clearMap() {
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
     if (map.avatar) mapAvatarScene.remove(map.avatar);
+    if (map.fog) mapAvatarScene.remove(map.fog);
     for (const st of map.stars || []) mapAvatarScene.remove(st);
     map.stars = [];
     map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
@@ -2786,7 +2780,7 @@
       c.position.copy(behind(-map.halfW - 4 + i * 1.6 + Math.random() * 0.6, -1 + Math.random() * 2, 0.3 + Math.random() * 0.5));
       map.fog.add(c);
     }
-    mapScene.add(map.fog);
+    mapAvatarScene.add(map.fog);   // por delante de todo: tapa lo que hay detrás
     // el viajero, de pie en la isla del siguiente nivel
     map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapAvatarScene.add(map.avatar);
     theme = saved;
@@ -2812,7 +2806,7 @@
     mapSun.color.set(A.sun[0]).lerp(_cb.set(B.sun[0]), s);
     mapSun.intensity = A.sun[1] + (B.sun[1] - A.sun[1]) * s;
     mapCloudMat.color.set(A.cloud).lerp(_cb.set(B.cloud), s);
-    mapFogMat.color.copy(mapCloudMat.color).lerp(_cb.set(0xffffff), 0.35);
+    mapFogMat.color.copy(mapCloudMat.color).lerp(_cb.set(0xffffff), 0.25);
     const night = s > 0.5 ? B.ink === '#ffffff' : A.ink === '#ffffff';
     document.body.classList.toggle('map-night', night);
   }
@@ -3010,20 +3004,24 @@
     });
   }
   // Niveles 6, 7 y 8 (contando desde el siguiente): cada vez más tapados por la bruma de las nubes
-  const FADE = [0.42, 0.68, 0.88];
+  const FADE = [0.38, 0.62, 0.85];
+  const _black = new THREE.Color(0), _tmpC = new THREE.Color();
+  const skyOf = (wi, out) => out.set(THEMES[WORLDS[wi].id].top).lerp(_tmpC.set(THEMES[WORLDS[wi].id].bot), 0.3);
   function mapFade() {
     const fade = (o, amt, col) => o.traverse(m => {
       if (!m.isMesh || !m.material || !m.material.color) return;
-      if (!m.userData.orig) { m.material = m.material.clone(); m.userData.orig = { c: m.material.color.clone(), e: m.material.emissive ? m.material.emissive.clone() : null }; }
+      if (!m.userData.orig) { m.material = m.material.clone(); m.userData.orig = { c: m.material.color.clone(), e: m.material.emissive ? m.material.emissive.clone().multiplyScalar(m.material.emissiveIntensity ?? 1) : null }; }
+      if (m.material.emissive) m.material.emissiveIntensity = 1;   // (el brillo propio ya va incluido en orig.e)
       if (m.material.map) { m.material.transparent = true; m.material.opacity = 1 - amt; return; }   // pegatinas: se desvanecen
-      m.material.color.copy(m.userData.orig.c).lerp(col, amt);
-      if (m.userData.orig.e) m.material.emissive.copy(m.userData.orig.e).lerp(col, amt * 0.6);
+      // se apaga su color y se cambia por el del cielo sin iluminar: del todo desvanecido queda igual que el fondo
+      m.material.color.copy(m.userData.orig.c).multiplyScalar(1 - amt);
+      if (m.material.emissive) m.material.emissive.copy(m.userData.orig.e || _black).multiplyScalar(1 - amt).add(_tmpC.copy(col).multiplyScalar(amt));
     });
     const col = new THREE.Color();
     SLOTS.forEach((s, k) => {
       if (k > map.renderK) return;
       const i = k - map.limitK - 1, amt = i >= 0 ? FADE[i] : 0;
-      col.set(THEMES[WORLDS[s.wi].id].cloud).lerp(new THREE.Color(0xffffff), 0.35);
+      skyOf(s.wi, col);
       if (amt || map.pads[k].userData.faded) fade(map.pads[k], amt, col);
       map.pads[k].userData.faded = amt > 0;
     });
@@ -3031,12 +3029,12 @@
     const y0 = padY(map.limitK), y1 = map.wallY ?? Infinity;
     map.pads.slice(SLOTS.length).forEach(o => {
       const amt = Math.max(0, Math.min(1, (o.userData.oy - y0) / (y1 - y0))) * 0.9;
-      if (amt || o.userData.faded) { col.set(0xffffff); fade(o, amt * 0.7, col); }
+      if (amt || o.userData.faded) { skyOf(SLOTS[Math.min(map.renderK, SLOTS.length - 1)].wi, col); fade(o, amt * 0.8, col); }
       o.userData.faded = amt > 0;
     });
     for (const st of map.stones) {
       const i = st.userData.slot - map.limitK - 1, amt = i >= 0 ? FADE[Math.min(2, i)] * 0.95 : 0;
-      if (amt || st.userData.faded) { col.set(THEMES[WORLDS[SLOTS[st.userData.slot].wi].id].cloud).lerp(new THREE.Color(0xffffff), 0.35); fade(st, amt, col); }
+      if (amt || st.userData.faded) { skyOf(SLOTS[st.userData.slot].wi, col); fade(st, amt, col); }
       st.userData.faded = amt > 0;
     }
   }
@@ -3718,7 +3716,6 @@
     }
     const wdt = dt * (slowLeft > 0 ? 0.5 : 1);
     wtime += wdt;
-    tickCountdown(dt);
     tickBar(wdt);
     if (player.userData.flames.visible) player.userData.flames.children.forEach(f => { f.scale.y = 0.75 + Math.random() * 0.55; });
     updateWeather(wdt, wtime);
