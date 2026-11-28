@@ -2571,6 +2571,10 @@
   const mapHemi = new THREE.HemisphereLight(0xeaf6ff, 0x7a8a6a, 0.75); mapScene.add(mapHemi);
   const mapSun = new THREE.DirectionalLight(0xfff0d8, 0.85);
   mapScene.add(mapSun, mapSun.target);
+  // El viajero va en una escena aparte que se dibuja encima: así nunca lo tapan islas ni piedras
+  const mapAvatarScene = new THREE.Scene();
+  const mapAvHemi = new THREE.HemisphereLight(0xeaf6ff, 0x7a8a6a, 0.75), mapAvSun = new THREE.DirectionalLight(0xfff0d8, 0.85);
+  mapAvatarScene.add(mapAvHemi, mapAvSun, mapAvSun.target);
   const MAP_R = new THREE.Vector3(1, 0, -1).normalize();    // derecha en pantalla
   const MAP_F = new THREE.Vector3(-1, 0, -1).normalize();   // hacia el fondo
   // El camino es una serpiente: tramos rectos de un lado a otro unidos por curvas en los extremos,
@@ -2672,6 +2676,7 @@
   }
   function clearMap() {
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
+    if (map.avatar) mapAvatarScene.remove(map.avatar);
     map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
   }
   function buildMap() {
@@ -2774,7 +2779,7 @@
     }
     mapScene.add(map.fog);
     // el viajero, de pie en la isla del siguiente nivel
-    map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapScene.add(map.avatar);
+    map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapAvatarScene.add(map.avatar);
     theme = saved;
     map.built = true;
   }
@@ -2885,10 +2890,11 @@
     }
     if (map.avatar && map.avatarK >= 0) {
       const p = map.pads[map.avatarK].position;
-      map.avatar.position.set(p.x, p.y, p.z).addScaledVector(MAP_F, 0.44).addScaledVector(MAP_R, 0.3);
+      map.avatar.position.set(p.x, p.y + 0.08 * 1.1, p.z);   // sobre el botón pulsado
+      mapAvHemi.color.copy(mapHemi.color); mapAvHemi.groundColor.copy(mapHemi.groundColor); mapAvHemi.intensity = mapHemi.intensity;
+      mapAvSun.color.copy(mapSun.color); mapAvSun.intensity = mapSun.intensity; mapAvSun.position.copy(mapSun.position); mapAvSun.target.position.copy(mapSun.target.position); mapAvSun.target.updateMatrixWorld();
       map.avatar.userData.body.position.y = Math.abs(Math.sin(time * 2.2)) * 0.05;
     }
-    if (map.nextCap) map.nextCap.emissiveIntensity = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(time * 4));
     mapSky(map.y);
     placeMapPins();
   }
@@ -2925,9 +2931,18 @@
   // Abre el mapa centrado en un nivel (el que acabas de jugar o el siguiente pendiente)
   // Interruptor de cada nivel (como los del juego) con su número o un candado pegado encima, y sus estrellas
   const MAP_BTN_COL = KEY_COLORS[1];
-  const mapStarShape = (() => { const sh = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.42 : 1; sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } return sh; })();
-  const MAP_STAR_GEO = new THREE.ExtrudeGeometry(mapStarShape, { depth: 0.35, bevelEnabled: false }); MAP_STAR_GEO.center();
-  const mapStarMat = new THREE.MeshStandardMaterial({ color: 0xffc93a, emissive: 0xb07a00, emissiveIntensity: 0.35, roughness: 0.4, metalness: 0.2 });
+  // Estrella biselada: cada punta son dos caras en pendiente que suben hasta el centro (por delante y por detrás)
+  const MAP_STAR_GEO = (() => {
+    const P = [], pos = [];
+    for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.45 : 1; P.push([Math.cos(a) * r, Math.sin(a) * r, 0]); }
+    const F = [0, 0, 0.3], B = [0, 0, -0.3];
+    for (let i = 0; i < 10; i++) { const a = P[i], b = P[(i + 1) % 10]; pos.push(...F, ...a, ...b, ...B, ...b, ...a); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    return g;
+  })();
+  const mapStarMat = new THREE.MeshStandardMaterial({ color: 0xe8323c, emissive: 0x7a0010, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.1, flatShading: true });
+  // posiciones del arco de estrellas sobre el interruptor (desplazamiento lateral, altura, giro)
+  const STAR_ARC = { 1: [[0, 0.78, 0]], 2: [[-0.26, 0.72, 0.14], [0.26, 0.72, -0.14]], 3: [[-0.44, 0.62, 0.3], [0, 0.82, 0], [0.44, 0.62, -0.3]] };
   const stickerTex = {};
   function stickerFor(label) {
     if (stickerTex[label]) return stickerTex[label];
@@ -2954,26 +2969,26 @@
       if (k > map.limitK) return;
       const pad = map.pads[k], g = new THREE.Group(), lv = s.lv;
       const open = lv !== null && slotUnlocked(k), n = open ? best[lv] : undefined;
-      const btn = new THREE.Group(); btn.position.set(-0.06, 0, -0.06);   // un poco hacia el fondo; delante van las estrellas
+      const btn = new THREE.Group();
+      const here = k === map.avatarK;   // donde está el viajero, el interruptor está pulsado
       const base = new THREE.Mesh(G_BTN_BASE, postMat); base.position.y = 0.025;
       const bevel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.022, 8, 32), new THREE.MeshStandardMaterial({ color: 0x9aa1a8, metalness: 0.6, roughness: 0.35 }));
       bevel.rotation.x = Math.PI / 2; bevel.position.y = 0.05;
       const col = open ? MAP_BTN_COL : 0x9ca3aa;
       const capMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: open ? 0.15 : 0.02, roughness: open ? 0.4 : 0.7 });
-      const cap = new THREE.Mesh(G_BTN_CAP, capMat); cap.position.y = 0.09; cap.castShadow = true;
+      const cap = new THREE.Mesh(G_BTN_CAP, capMat); cap.position.y = here ? 0.03 : 0.09; cap.castShadow = true;
+      if (here) capMat.emissiveIntensity = 0.75;
       const sticker = new THREE.Mesh(G_STICKER, new THREE.MeshBasicMaterial({ map: stickerFor(open ? String(s.n) : 'lock'), transparent: true }));
       sticker.rotation.x = -Math.PI / 2; sticker.rotation.z = Math.PI / 4; sticker.position.y = 0.051; cap.add(sticker);   // mirando a la cámara
       btn.add(base, bevel, cap);
       for (let b = 0; b < 6; b++) { const bo = new THREE.Mesh(G_BOLT, boltMat2); bo.position.set(Math.cos(b * Math.PI / 3) * 0.32, 0.055, Math.sin(b * Math.PI / 3) * 0.32); btn.add(bo); }
       g.add(btn);
-      if (open && n === undefined && !map.nextCap) map.nextCap = capMat;
-      // estrellas de pie en el borde delantero, de cara a la cámara
-      for (let i = 0; i < (n || 0); i++) {
-        const st = new THREE.Mesh(MAP_STAR_GEO, mapStarMat); st.scale.setScalar(0.12);
-        const lat = (i - (n - 1) / 2) * 0.26;
-        st.position.copy(new THREE.Vector3().addScaledVector(MAP_F, -0.47).addScaledVector(MAP_R, lat)).setY(0.14 + (i === 1 && n === 3 ? 0.05 : 0));
-        st.rotation.y = Math.PI / 4; st.castShadow = true; g.add(st);
-      }
+      // estrellas en arco por encima del interruptor, de cara a la cámara
+      if (n) STAR_ARC[n].forEach(([lat, y, roll]) => {
+        const st = new THREE.Mesh(MAP_STAR_GEO, mapStarMat); st.scale.setScalar(0.2);
+        st.position.copy(new THREE.Vector3().addScaledVector(MAP_R, lat).addScaledVector(MAP_F, -0.15)).setY(y);
+        st.rotation.set(-ELEV, Math.PI / 4, roll, 'YXZ'); st.castShadow = true; g.add(st);
+      });
       pad.add(g); pad.userData.mark = g;
     });
   }
@@ -3683,7 +3698,10 @@
       if (c.portalFx) c.portalFx.userData.update(wdt, wtime);
     }
     for (const cl of clouds) { cl.position.x += cl.userData.v * wdt; if (cl.position.x > 14) cl.position.x = -14; }
-    if (document.body.dataset.screen === 'map' && map.built) { updateMap(dt, time); renderer.render(mapScene, mapCam); }
+    if (document.body.dataset.screen === 'map' && map.built) {
+      updateMap(dt, time); renderer.render(mapScene, mapCam);
+      renderer.autoClear = false; renderer.clearDepth(); renderer.render(mapAvatarScene, mapCam); renderer.autoClear = true;
+    }
     else renderer.render(scene, camera);
     requestAnimationFrame(loop);
   }
