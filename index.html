@@ -2607,6 +2607,12 @@
   const pathPos = s => { const [x, y] = pathAt(s); return new THREE.Vector3().addScaledVector(MAP_R, x).setY(y); };
   const padPos = k => pathPos(padS(k));
   const padY = k => pathAt(padS(k))[1];
+  const MAP_TILT = 0.8;   // > sen·cos de la elevación: basta para que lo de arriba quede detrás
+  function mapTilt(o) {
+    const d = o.position.y * MAP_TILT;
+    o.position.addScaledVector(MAP_F, d); o.position.y -= d * TAN_E;
+    if (o.userData.base !== undefined) o.userData.base = o.position.y;
+  }
   // algo que está d unidades más al fondo se ve más arriba en pantalla: se compensa bajándolo
   const behind = (sx, d, y) => new THREE.Vector3().addScaledVector(MAP_R, sx).addScaledVector(MAP_F, d).setY(y - d * TAN_E);
   // Una isla con varias casillas del estilo del juego (sin bidones)
@@ -2783,6 +2789,9 @@
     // el viajero, de pie en la isla del siguiente nivel
     map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapAvatarScene.add(map.avatar);
     theme = saved;
+    // Inclinación: cuanto más alto está algo, más al fondo se coloca (y se baja para que se vea en el mismo sitio).
+    // Así lo que queda más abajo en pantalla está más cerca de la cámara y se dibuja delante, como debe ser
+    for (const o of mapScene.children) if (!o.isLight && o !== mapSun.target && o !== map.fog && !o.userData.wid) mapTilt(o);   // las partículas se mueven solas: sin inclinar
     map.built = true;
   }
   // Colores del cielo y de la luz según la altura: se mezclan los de los mundos vecinos
@@ -3008,7 +3017,7 @@
     while (map.limitK < last && padY(map.limitK + 1) - padY(map.limitK) < 0.5) map.limitK++;
     map.wallY = map.limitK < last ? padY(map.limitK) + 2.3 : null;
     map.fog.visible = map.wallY !== null;
-    if (map.fog.visible) map.fog.position.y = map.wallY;
+    if (map.fog.visible) { map.fog.position.set(0, map.wallY, 0); mapTilt(map.fog); }
     const top = map.wallY === null ? Infinity : map.wallY;
     map.pads.forEach((o, i) => { o.visible = i < SLOTS.length ? i <= map.limitK : o.userData.base < top; });
     for (const o of map.stones) o.visible = o.userData.slot <= map.limitK;
