@@ -2940,7 +2940,7 @@
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
     return g;
   })();
-  const mapStarMat = new THREE.MeshStandardMaterial({ color: 0xe8323c, emissive: 0x7a0010, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.1, flatShading: true });
+  const mapStarMat = new THREE.MeshStandardMaterial({ color: 0xffc23a, emissive: 0x8a5a00, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.35, flatShading: true });
   // posiciones del arco de estrellas sobre el interruptor (desplazamiento lateral, altura, giro)
   const STAR_ARC = { 1: [[0, 0.78, 0]], 2: [[-0.26, 0.72, 0.14], [0.26, 0.72, -0.14]], 3: [[-0.44, 0.62, 0.3], [0, 0.82, 0], [0.44, 0.62, -0.3]] };
   const stickerTex = {};
