@@ -197,8 +197,6 @@
   #map { background: transparent; touch-action: none; overflow: hidden; cursor: grab; user-select: none; -webkit-user-select: none; }
   #mapPins { position: absolute; inset: 0; pointer-events: none; }
   /* velo de nubes sobre los niveles que aún no se ven: opaco arriba y con borde algodonoso abajo */
-  #mapFog { position: absolute; left: 0; right: 0; top: 0; pointer-events: none;
-    background: linear-gradient(180deg, var(--fog, #fff) 0, var(--fog, #fff) calc(100% - 90px), transparent 100%); }
   .pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 0; border: none; background: transparent; box-shadow: none; border-radius: 18px; will-change: transform;
     backdrop-filter: none; -webkit-backdrop-filter: none; }   /* sin el desenfoque de los botones normales: se ve la isla */
   .pin:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
@@ -404,7 +402,6 @@
 
 <div id="map" class="screen" hidden>
   <div id="mapPins"></div>
-  <div id="mapFog" hidden></div>
   <div class="map-top">
     <button id="mapBack" data-i18n="home">‹ Inicio</button>
     <div class="stats"><span class="stat"><span class="coin"></span><span id="mapCoins">0</span></span><span class="stat"><span class="sicon">★</span><span id="mapStars">0</span></span></div>
@@ -2662,6 +2659,22 @@
   const mapCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x111111, flatShading: true });
   const mapFogMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a1a1a, flatShading: true });   // muro de nubes: opaco, tapa lo que aún no se ve
   const PUFF = new THREE.IcosahedronGeometry(1, 1);
+  // una nube entera en una sola geometría (para dibujar cientos con instancias)
+  function mergedCloudGeo(seed) {
+    const r = rngFor('cloudgeo' + seed), n = 4 + seed, parts = [];
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+    for (let j = 0; j < n; j++) {
+      const t = j / (n - 1), rad = 0.45 + 0.4 * Math.sin(Math.PI * t) + r() * 0.12;
+      const g = PUFF.index ? PUFF.toNonIndexed() : PUFF.clone();
+      g.applyMatrix4(m4.compose(new THREE.Vector3((t - 0.5) * 2.6, rad * 0.25, (r() - 0.5) * 0.4), q, new THREE.Vector3(rad, rad * 0.72, rad * 0.85)));
+      parts.push(g);
+    }
+    let len = 0; for (const g of parts) len += g.attributes.position.array.length;
+    const pos = new Float32Array(len); let o = 0;
+    for (const g of parts) { pos.set(g.attributes.position.array, o); o += g.attributes.position.array.length; g.dispose(); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.computeVertexNormals();
+    return geo;
+  }
   function mapCloud(size, mat = mapCloudMat) {
     // varias bolas achatadas que se solapan: más grandes en el centro, base algo plana
     const c = new THREE.Group(), n = 4 + Math.floor(Math.random() * 3);
@@ -2677,11 +2690,12 @@
   function clearMap() {
     for (const o of mapScene.children.slice()) if (o !== mapHemi && o !== mapSun && o !== mapSun.target) { disposeMerged(o); mapScene.remove(o); }
     if (map.avatar) mapAvatarScene.remove(map.avatar);
-    if (map.fog) mapAvatarScene.remove(map.fog);
+    for (const m of map.dense || []) { mapAvatarScene.remove(m); m.geometry.dispose(); m.dispose && m.dispose(); }
+    map.dense = []; map.denseItems = [];
     for (const c of map.fx) if (c.parent) c.parent.remove(c);
     for (const st of map.stars || []) mapAvatarScene.remove(st);
     map.stars = [];
-    map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.fog = null; map.built = false;
+    map.pads = []; map.stones = []; map.fx = []; map.particles = []; map.avatar = null; map.built = false;
   }
   function buildMap() {
     const saved = theme;
@@ -2772,28 +2786,18 @@
         mapScene.add(m); map.particles.push(m);
       }
     });
-    // muro de nubes que tapa los niveles que aún no se pueden ver (se coloca al abrir el mapa)
-    map.fog = new THREE.Group();
-    // solo el borde: por encima, un velo del color de las nubes (#mapFog) tapa todo lo demás
-    const n = Math.ceil((2 * map.halfW + 6) / 1.6);
-    for (let i = 0; i < n; i++) {
-      const c = mapCloud(0.7 + Math.random() * 0.35, mapFogMat);
-      c.position.copy(behind(-map.halfW - 4 + i * 1.6 + Math.random() * 0.6, -1 + Math.random() * 2, 0.3 + Math.random() * 0.5));
-      map.fog.add(c);
-    }
-    mapAvatarScene.add(map.fog);   // por delante de todo: tapa lo que hay detrás
-    // nubes que cruzan por delante de los niveles que se están perdiendo (se colocan al abrir el mapa)
-    map.fadeClouds = [];
-    for (let i = 0; i < 6; i++) {
-      const c = mapCloud(0.7 + Math.random() * 0.5); c.userData.v = 0.15 + Math.random() * 0.2; c.userData.fade = true;
-      mapAvatarScene.add(c); map.fx.push(c); map.fadeClouds.push(c);
-    }
+    // capa de nubes densas por encima del último nivel claro: muchas nubes con pocas llamadas de dibujo (instancias)
+    map.dense = [0, 1, 2].map(v => {
+      const m = new THREE.InstancedMesh(mergedCloudGeo(v), mapFogMat, 260);
+      m.count = 0; m.frustumCulled = false; mapAvatarScene.add(m); return m;
+    });
+    map.denseItems = [];
     // el viajero, de pie en la isla del siguiente nivel
     map.avatar = makePlayer(); map.avatar.rotation.y = YAW.E; mapAvatarScene.add(map.avatar);
     theme = saved;
     // Inclinación: cuanto más alto está algo, más al fondo se coloca (y se baja para que se vea en el mismo sitio).
     // Así lo que queda más abajo en pantalla está más cerca de la cámara y se dibuja delante, como debe ser
-    for (const o of mapScene.children) if (!o.isLight && o !== mapSun.target && o !== map.fog && !o.userData.wid) mapTilt(o);   // las partículas se mueven solas: sin inclinar
+    for (const o of mapScene.children) if (!o.isLight && o !== mapSun.target && !o.userData.wid) mapTilt(o);   // las partículas se mueven solas: sin inclinar
     map.built = true;
   }
   // Colores del cielo y de la luz según la altura: se mezclan los de los mundos vecinos
@@ -2856,13 +2860,8 @@
     return nextK;
   }
   const _pv = new THREE.Vector3(), _up = new THREE.Vector3(0, 0.3, 0);
+  const _dm = new THREE.Matrix4(), _dv = new THREE.Vector3(), _dq = new THREE.Quaternion(), _ds = new THREE.Vector3();
   function placeMapPins() {
-    if (map.wallY !== null) {
-      _pv.set(0, map.wallY + 0.6, 0).project(mapCam);
-      const fy = (1 - _pv.y) * innerHeight / 2 + 40, f = $('mapFog');
-      f.style.height = fy > 100 ? fy + 'px' : '0px';   // sin restos pegados arriba cuando el muro queda fuera de la vista
-      f.style.setProperty('--fog', '#' + map.fogCol.getHexString());
-    }
     const box = $('mapPins'), W2 = innerWidth / 2, H2 = innerHeight / 2;
     const put = (el, v) => {
       _pv.copy(v).project(mapCam);
@@ -2898,6 +2897,15 @@
     mapSun.position.set(-4, map.y + 12, 6); mapSun.target.position.set(0, map.y, 0); mapSun.target.updateMatrixWorld();
     for (const p of map.pads) p.position.y = p.userData.base + 0.06 * Math.sin(time * 0.9 + p.userData.ph);
     for (const s of map.stones) s.position.y = s.userData.base + 0.05 * Math.sin(time * 1.3 + s.userData.ph);
+    if (map.denseItems.length) {
+      const span = map.halfW + 5;
+      for (const it of map.denseItems) {
+        it.x += it.v * dt; if (it.x > span) it.x -= 2 * span;
+        _dm.compose(_dv.copy(MAP_R).multiplyScalar(it.x).setY(it.y), _dq, _ds.set(it.s, it.s, it.s));
+        map.dense[it.g].setMatrixAt(it.i, _dm);
+      }
+      for (const m of map.dense) m.instanceMatrix.needsUpdate = true;
+    }
     for (const c of map.fx) { c.position.addScaledVector(MAP_R, c.userData.v * dt); if (c.position.dot(MAP_R) > 11) c.position.addScaledVector(MAP_R, -22); }
     for (const m of map.particles) {
       const u = m.userData;
@@ -3057,22 +3065,31 @@
     map.renderK = Math.min(last, map.limitK + 3);
     let topY = -Infinity; for (let k = 0; k <= map.renderK; k++) topY = Math.max(topY, padY(k));
     map.wallY = map.renderK < last ? topY + 2.3 : null;
-    map.fog.visible = map.wallY !== null;
-    if (map.fog.visible) { map.fog.position.set(0, map.wallY, 0); mapTilt(map.fog); }
     const top = map.wallY === null ? Infinity : map.wallY;
     map.pads.forEach((o, i) => { o.visible = i < SLOTS.length ? i <= map.renderK : o.userData.oy < top - 0.8; });
     for (const o of map.stones) o.visible = o.userData.slot <= map.renderK;
     for (const m of map.particles) m.visible = m.userData.y0 < top;
-    $('mapFog').hidden = map.wallY === null;
     // a partir del nivel 6 las nubes pasan por delante de los bloques
     const yFront = padY(map.limitK) + 0.8;
-    for (const c of map.fx) if (!c.userData.fade) ((map.wallY !== null && c.userData.oy > yFront) ? mapAvatarScene : mapScene).add(c);
-    map.fadeClouds.forEach((c, i) => {
-      c.visible = map.wallY !== null;
-      if (!c.visible) return;
-      const y = yFront + 0.4 + (i / map.fadeClouds.length) * Math.max(1, map.wallY - yFront - 1.2);
-      c.position.copy(behind(-map.halfW - 2 + Math.random() * (2 * map.halfW + 4), -1, y));
-    });
+    for (const c of map.fx) ((map.wallY !== null && c.userData.oy > yFront) ? mapAvatarScene : mapScene).add(c);
+    // nubes densas: empiezan sueltas sobre el nivel 6 y enseguida tapan casi todo (dejan ver un poco entre ellas)
+    map.denseItems = []; const counts = [0, 0, 0];
+    if (map.wallY !== null) {
+      const yStart = padY(map.limitK) + 1.1, yEnd = map.wallY + 0.6 * map.halfH / COS_E + 3, span = map.halfW + 5;
+      // la densidad va subiendo entre el nivel 6 y el 8, y por encima queda en torno a un 80 %
+      let y8 = yStart; for (let k = map.limitK + 1; k <= map.renderK; k++) y8 = Math.max(y8, padY(k));
+      for (let row = 0, y = yStart; y < yEnd; row++) {
+        const t = (y - yStart) / Math.max(1, y8 + 1.5 - yStart);
+        const gap = t < 0.34 ? 5.2 : t < 0.67 ? 4.2 : t < 1 ? 3.2 : 1.75, v = 0.12 + Math.random() * 0.2;
+        y += t < 1 ? 1.4 : 0.9;
+        for (let x = -span + Math.random() * gap; x < span; x += gap * (0.85 + Math.random() * 0.3)) {
+          const g = Math.floor(Math.random() * 3);
+          if (counts[g] >= 260) continue;
+          map.denseItems.push({ g, i: counts[g]++, x, y: y + (Math.random() - 0.5) * 0.3, s: 0.75 + Math.random() * 0.3, v });
+        }
+      }
+    }
+    map.dense.forEach((m, g) => { m.count = counts[g]; });
   }
   function openMap(focusK) {
     clearLevel(); updateStats();
